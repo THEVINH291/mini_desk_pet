@@ -275,8 +275,21 @@
 
     const TAP_SEQUENCE = ['wink', 'angry', 'happy', 'idle', 'angry', 'wink', 'happy'];
     const IDLE_STORIES = ['baseball', 'fortune', 'humming'];
+    const LUCKY_WISHES = [
+      'Luck is Yours',
+      'Stay Happy :)',
+      'Good Vibes Only',
+      'Big Win Ahead!',
+      'You Got This!',
+      'Shine Bright!',
+      'Money & Joy!',
+      'Best Day Ever',
+      'Dream Big!',
+      'Keep Smiling!'
+    ];
     let seqIndex = 0;
     let storyIndex = 0;
+    let wishIndex = 0;
     let tapCount = 0;
 
     const HOLD_DIZZY_SEC    = 0.50;
@@ -306,7 +319,8 @@
       holdDuration: 0,
       dizzyTriggeredInHold: false,
       batHitSoundPlayed: false,
-      popSoundPlayed: false
+      popSoundPlayed: false,
+      currentWish: LUCKY_WISHES[0]
     };
 
     let audioCtx = null;
@@ -412,6 +426,10 @@
       state.modeDuration = duration;
       state.idleCountdown = IDLE_INTERVAL_SEC;
       if (resetNoTouch) state.noTouchElapsed = 0;
+      if (newMode === 'fortune') {
+        state.currentWish = LUCKY_WISHES[wishIndex % LUCKY_WISHES.length];
+        wishIndex++;
+      }
       state.bounce = 1.0;
       state.batHitSoundPlayed = false;
       state.popSoundPlayed = false;
@@ -823,6 +841,38 @@
       }
     }
 
+    function drawGoldenWishBanner(bannerY, openP, wishText) {
+      const bw = 166 * openP;
+      if (bw <= 24) return;
+      const bx = 120 - bw / 2;
+      ctx.save();
+      const grad = ctx.createLinearGradient(120, bannerY, 120, bannerY + 36);
+      grad.addColorStop(0, '#f59e0b');
+      grad.addColorStop(0.5, '#eab308');
+      grad.addColorStop(1, '#d97706');
+      ctx.fillStyle = grad;
+      ctx.strokeStyle = '#fef08a';
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = 'rgba(250, 204, 21, 0.42)';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.roundRect(bx, bannerY, bw, 36, 9);
+      ctx.fill();
+      ctx.stroke();
+
+      if (openP > 0.65) {
+        ctx.fillStyle = '#ffffff';
+        ctx.shadowColor = 'rgba(120, 53, 15, 0.75)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetY = 1;
+        ctx.font = '700 16.5px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(wishText, 120, bannerY + 19);
+      }
+      ctx.restore();
+    }
+
     function drawFortuneScene(el, t) {
       if (el < 1.10) {
         const shakeAngle = Math.sin(t * 36) * 0.18;
@@ -862,7 +912,7 @@
         ctx.restore();
       } else if (el < 2.25) {
         const openP = Math.min(1, (el - 1.10) / 0.35);
-        const splitX = 22 + openP * 54;
+        const splitX = 22 + openP * 64;
         const bannerY = 122 + openP * 24;
 
         strokeNeonMochiHead(154, bannerY - 20, 64, 56, 46, 0.36);
@@ -873,39 +923,19 @@
         [-1, 1].forEach(dir => {
           ctx.save();
           ctx.translate(120 + dir * splitX, bannerY + 18);
-          ctx.fillStyle = '#facc15';
+          ctx.fillStyle = '#fde047';
           ctx.strokeStyle = '#a16207';
           ctx.lineWidth = 2.5;
           ctx.beginPath();
-          ctx.arc(0, 0, 24, dir < 0 ? Math.PI * 0.55 : -Math.PI * 0.45, dir < 0 ? Math.PI * 1.45 : Math.PI * 0.45);
-          ctx.lineTo(0, 18);
+          ctx.arc(0, 0, 22, dir < 0 ? Math.PI * 0.55 : -Math.PI * 0.45, dir < 0 ? Math.PI * 1.45 : Math.PI * 0.45);
+          ctx.lineTo(0, 16);
           ctx.closePath();
           ctx.fill();
           ctx.stroke();
           ctx.restore();
         });
 
-        const bw = 148 * openP;
-        if (bw > 24) {
-          ctx.save();
-          const bx = 120 - bw / 2;
-          ctx.fillStyle = '#dbeafe';
-          ctx.strokeStyle = '#60a5fa';
-          ctx.lineWidth = 2.5;
-          ctx.beginPath();
-          ctx.roundRect(bx, bannerY, bw, 36, 9);
-          ctx.fill();
-          ctx.stroke();
-
-          if (openP > 0.65) {
-            ctx.fillStyle = '#1e3a8a';
-            ctx.font = '700 18px system-ui, sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('Luck is Yours', 120, bannerY + 19);
-          }
-          ctx.restore();
-        }
+        drawGoldenWishBanner(bannerY, openP, state.currentWish);
       } else {
         const jumpPhase = (el - 2.25) * 8.2;
         const hopSin = Math.abs(Math.sin(jumpPhase));
@@ -917,36 +947,19 @@
 
         [-1, 1].forEach(dir => {
           ctx.save();
-          ctx.translate(120 + dir * 78, bannerY + 18);
-          ctx.fillStyle = '#facc15';
+          ctx.translate(120 + dir * 87, bannerY + 18);
+          ctx.fillStyle = '#fde047';
           ctx.strokeStyle = '#a16207';
           ctx.lineWidth = 2;
           ctx.beginPath();
-          ctx.arc(0, 0, 20, dir < 0 ? Math.PI * 0.55 : -Math.PI * 0.45, dir < 0 ? Math.PI * 1.45 : Math.PI * 0.45);
+          ctx.arc(0, 0, 18, dir < 0 ? Math.PI * 0.55 : -Math.PI * 0.45, dir < 0 ? Math.PI * 1.45 : Math.PI * 0.45);
           ctx.closePath();
           ctx.fill();
           ctx.stroke();
           ctx.restore();
         });
 
-        ctx.save();
-        ctx.fillStyle = '#dbeafe';
-        ctx.strokeStyle = '#60a5fa';
-        ctx.lineWidth = 2.5;
-        ctx.shadowColor = 'rgba(56, 189, 248, 0.35)';
-        ctx.shadowBlur = 10;
-        ctx.beginPath();
-        ctx.roundRect(46, bannerY, 148, 36, 9);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.shadowBlur = 0;
-        ctx.fillStyle = '#1e3a8a';
-        ctx.font = '700 18px system-ui, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('Luck is Yours', 120, bannerY + 19);
-        ctx.restore();
+        drawGoldenWishBanner(bannerY, 1.0, state.currentWish);
 
         const petScale = 0.46;
         const sx = 1 + landingPress * 0.14 - hopSin * 0.05;
