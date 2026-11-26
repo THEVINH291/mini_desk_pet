@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mini Desk Pet Simulator V3 — ESP32 ST7789 240×240</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --panel: #131926;
+      --border: #232d42;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+    }
+    * { box-sizing: border-box; user-select: none; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(circle at 50% 25%, #172036 0%, #090d16 70%);
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .layout {
+      max-width: 960px;
+      width: 100%;
+      display: grid;
+      grid-template-columns: 1fr 1.25fr;
+      gap: 32px;
+      background: rgba(19, 25, 38, 0.88);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 32px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(12px);
+    }
+    @media (max-width: 780px) {
+      .layout { grid-template-columns: 1fr; padding: 20px; }
+    }
+    .stage {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at 50% 60%, rgba(56, 189, 248, 0.08), transparent 65%);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 20px;
+      padding: 28px 16px 28px;
+      position: relative;
+    }
+    .cube-wrap {
+      transition: transform 0.1s ease;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .touch-sensor {
+      width: 196px;
+      height: 30px;
+      margin-bottom: -6px;
+      z-index: 3;
+      border-radius: 18px 18px 0 0;
+      background: linear-gradient(180deg, rgba(56, 189, 248, 0.24), rgba(30, 41, 59, 0.92));
+      border: 1px solid rgba(56, 189, 248, 0.45);
+      border-bottom: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #bae6fd;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.15s ease;
+    }
+    .touch-sensor:hover {
+      background: linear-gradient(180deg, rgba(56, 189, 248, 0.36), rgba(30, 41, 59, 0.95));
+    }
+    .touch-sensor.active {
+      background: linear-gradient(180deg, rgba(56, 189, 248, 0.55), rgba(37, 99, 235, 0.5));
+      box-shadow: 0 -4px 18px rgba(56, 189, 248, 0.4);
+    }
+    #holdBar {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      height: 3px;
+      width: 0%;
+      background: #facc15;
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #38bdf8;
+      box-shadow: 0 0 8px #38bdf8;
+    }
+    .cube-body {
+      width: 228px;
+      height: 228px;
+      border-radius: 36px;
+      padding: 16px;
+      background: linear-gradient(145deg, #2b2e35 0%, #15171c 55%, #090a0d 100%);
+      box-shadow:
+        0 24px 44px rgba(0,0,0,0.65),
+        inset 0 1px 2px rgba(255,255,255,0.16),
+        inset 0 -3px 6px rgba(0,0,0,0.8);
+      cursor: pointer;
+      position: relative;
+    }
+    .screen-frame {
+      width: 100%;
+      height: 100%;
+      border-radius: 24px;
+      background: #000000;
+      overflow: hidden;
+      box-shadow: inset 0 0 14px rgba(0,0,0,0.98), 0 0 1px rgba(255,255,255,0.12);
+    }
+    canvas { width: 100%; height: 100%; display: block; }
+    .power-strip-hint {
+      margin-top: 16px;
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.6;
+    }
+    h1 { margin: 0 0 6px; font-size: 20px; font-weight: 700; }
+    .subtitle { margin: 0 0 14px; font-size: 13px; color: var(--muted); line-height: 1.5; }
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      font-size: 13px;
+    }
+    .badge {
+      font-family: monospace;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.16);
+      color: #7dd3fc;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+    }
+    .btn-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    button.mode-btn {
+      background: #1a2234;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      padding: 9px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.15s ease;
+    }
+    button.mode-btn:hover { background: #222d44; border-color: #3b82f6; }
+    button.mode-btn.selected {
+      background: rgba(37, 99, 235, 0.22);
+      border-color: #38bdf8;
+      color: #e0f2fe;
+    }
+    .options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid var(--border);
+      font-size: 13px;
+      margin-bottom: 12px;
+    }
+    .options label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+    .shortcuts { font-size: 12px; color: var(--muted); line-height: 1.6; }
+    kbd {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 5px;
+      padding: 1px 6px;
+      font-family: monospace;
+      color: #cbd5e1;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <div class="stage">
+      <div id="cubeUnit" class="cube-wrap">
+        <div id="touchPad" class="touch-sensor" title="Chạm nhẹ: đổi mặt / đánh thức | Nhấn giữ > 0.5s: bị choáng!">
+          <div id="holdBar"></div>
+          <span class="pulse-dot"></span>
+          <span>Cảm biến đỉnh đầu (Chạm / Giữ lâu)</span>
+        </div>
+        <div id="cubeBody" class="cube-body">
+          <div class="screen-frame">
+            <canvas id="tft" width="240" height="240"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="power-strip-hint">
+        Màn hình thực tế: <strong>IPS TFT 1.3" / 1.54" ST7789 (240×240 px)</strong><br/>
+        Phím tắt: <kbd>Space</kbd> Chạm / Đánh thức • <kbd>B</kbd> Bóng chày • <kbd>S</kbd> Tự ngủ
+      </div>
+    </div>
+
+    <div>
+      <h1>Mini Desk Pet V3 — Đầy Đủ Hiệu Ứng Thực Tế</h1>
+      <p class="subtitle">
+        Đồng bộ trọn bộ 3 video &amp; hình mẫu: màn chào <strong>Hi</strong>, giữ lâu bị <strong>choáng</strong>, 3 hoạt ảnh tự diễn mỗi 15s (<strong>Bóng chày</strong>, nhảy trên chữ <strong>Luck is Yours</strong>, <strong>Ngân nga ♫</strong>) và để lâu <strong>tự ngủ tắt màn</strong>.
+      </p>
+
+      <div class="status-bar">
+        <span>Trạng thái: <span id="stateBadge" class="badge">HI!</span></span>
+        <span>Tiếp theo: <strong id="idleBadge">15s</strong> • Chạm: <strong id="tapCount">0</strong></span>
+      </div>
+
+      <div class="btn-grid">
+        <button class="mode-btn selected" data-mode="boot">👋 Khởi động chào (Hi)</button>
+        <button class="mode-btn" data-mode="idle">😐 Bình thường (Đầu tròn)</button>
+        <button class="mode-btn" data-mode="wink">😉 Nháy mắt (o &lt;)</button>
+        <button class="mode-btn" data-mode="angry">😠 Cau mày (\ /)</button>
+        <button class="mode-btn" data-mode="happy">😊 Cười tươi (:D)</button>
+        <button class="mode-btn" data-mode="dizzy">😵 Bị choáng (Giữ &gt;0.5s)</button>
+        <button class="mode-btn" data-mode="baseball">⚾ Đánh bóng chày (Mũ vàng)</button>
+        <button class="mode-btn" data-mode="fortune">🥠 Nhảy trên chữ Luck is Yours</button>
+        <button class="mode-btn" data-mode="humming">🎵 Ngân nga nốt nhạc (♫)</button>
+        <button class="mode-btn" data-mode="sleep_toggle">😴 Tự ngủ tắt màn / Đánh thức</button>
+      </div>
+
+      <div class="options">
+        <label><input type="checkbox" id="soundToggle" checked /> Âm thanh Buzzer (GPIO 1)</label>
+        <label><input type="checkbox" id="idle15Toggle" checked /> Tự diễn mỗi 15s &amp; Tự ngủ sau 60s</label>
+      </div>
+
+      <div class="shortcuts">
+        • <strong>May mắn:</strong> Bánh quy tách ra rồi Pet nhảy tưng tưng ngay trên dòng chữ <strong>Luck is Yours</strong>.<br/>
+        • <strong>Đánh bóng chày:</strong> Pet đội mũ lưỡi trai vàng, vung gậy vàng đánh văng bóng Home Run.<br/>
+        • <strong>Tự ngủ &amp; Đánh thức:</strong> Để không 60s tự lim dim rồi tắt đen màn hình; chạm nhẹ sẽ hiện mắt nhắm xanh <code>︶ ︶</code> + miệng ngáp &rarr; mở 2 mắt tròn xanh <code>● ●</code> &rarr; sáng khung đầu!
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('tft');
+    const ctx = canvas.getContext('2d');
+    const cubeUnit = document.getElementById('cubeUnit');
+    const touchPad = document.getElementById('touchPad');
+    const holdBar = document.getElementById('holdBar');
+    const cubeBody = document.getElementById('cubeBody');
+    const stateBadge = document.getElementById('stateBadge');
+    const idleBadge = document.getElementById('idleBadge');
+    const tapCountEl = document.getElementById('tapCount');
+    const soundToggle = document.getElementById('soundToggle');
+    const idle15Toggle = document.getElementById('idle15Toggle');
+    const modeButtons = document.querySelectorAll('.mode-btn');
+
+    const TAP_SEQUENCE = ['wink', 'angry', 'happy', 'idle', 'angry', 'wink', 'happy'];
+    const IDLE_STORIES = ['baseball', 'fortune', 'humming'];
+    let seqIndex = 0;
+    let storyIndex = 0;
+    let tapCount = 0;
+
+    const HOLD_DIZZY_SEC    = 0.50;
+    const IDLE_INTERVAL_SEC = 15.0;
+    const AUTO_SLEEP_SEC    = 60.0;
+
+    const state = {
+      mode: 'boot',
+      animElapsed: 0,
+      modeDuration: 3.1,
+      idleCountdown: IDLE_INTERVAL_SEC,
+      noTouchElapsed: 0,
+      blink: 1.0,
+      nextBlink: 2.4,
+      blinking: false,
+      blinkPhase: 0,
+      gazeX: 0,
+      gazeY: 0,
+      targetGazeX: 0,
+      targetGazeY: 0,
+      nextGaze: 1.8,
+      bounce: 0,
+      angerMix: 0,
+      happyMix: 0,
+      winkMix: 0,
+      holding: false,
+      holdDuration: 0,
+      dizzyTriggeredInHold: false,
+      batHitSoundPlayed: false,
+      popSoundPlayed: false
+    };
+
+    let audioCtx = null;
+    function playChirp(type) {
+      if (!soundToggle.checked) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        gain.gain.setValueAtTime(0.06, now);
+
+        if (type === 'boot') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(659, now);
+          osc.frequency.setValueAtTime(987, now + 0.08);
+          osc.frequency.setValueAtTime(1318, now + 0.16);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+          osc.start(now); osc.stop(now + 0.28);
+        } else if (type === 'dizzy') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(620, now);
+          osc.frequency.linearRampToValueAtTime(360, now + 0.08);
+          osc.frequency.linearRampToValueAtTime(580, now + 0.16);
+          osc.frequency.linearRampToValueAtTime(310, now + 0.26);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.30);
+          osc.start(now); osc.stop(now + 0.30);
+        } else if (type === 'bat_hit') {
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(920, now);
+          osc.frequency.exponentialRampToValueAtTime(1760, now + 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+          osc.start(now); osc.stop(now + 0.15);
+        } else if (type === 'bubble_pop') {
+          osc.type = 'sine';
+          gain.gain.setValueAtTime(0.10, now);
+          osc.frequency.setValueAtTime(360, now);
+          osc.frequency.exponentialRampToValueAtTime(1550, now + 0.055);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.075);
+          osc.start(now); osc.stop(now + 0.075);
+        } else if (type === 'sleep') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(587, now);
+          osc.frequency.exponentialRampToValueAtTime(330, now + 0.22);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+          osc.start(now); osc.stop(now + 0.25);
+        } else if (type === 'wakeup') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(380, now);
+          osc.frequency.exponentialRampToValueAtTime(520, now + 0.14);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+          osc.start(now); osc.stop(now + 0.18);
+        } else if (type === 'wink') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(880, now);
+          osc.frequency.exponentialRampToValueAtTime(1480, now + 0.09);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+          osc.start(now); osc.stop(now + 0.11);
+        } else if (type === 'angry') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(340, now);
+          osc.frequency.linearRampToValueAtTime(210, now + 0.14);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+          osc.start(now); osc.stop(now + 0.16);
+        } else if (type === 'happy' || type === 'fortune' || type === 'humming' || type === 'baseball') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(740, now);
+          osc.frequency.setValueAtTime(988, now + 0.06);
+          osc.frequency.setValueAtTime(1174, now + 0.12);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.20);
+          osc.start(now); osc.stop(now + 0.20);
+        } else {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(700, now);
+          osc.frequency.exponentialRampToValueAtTime(920, now + 0.06);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+          osc.start(now); osc.stop(now + 0.07);
+        }
+      } catch (e) {}
+    }
+
+    function updateButtonsUI() {
+      const labels = {
+        boot: 'HI!', idle: 'IDLE', wink: 'WINK', angry: 'ANGRY',
+        happy: 'HAPPY', dizzy: 'DIZZY', baseball: 'BASEBALL',
+        fortune: 'LUCK', humming: 'MUSIC',
+        fall_asleep: 'SLEEPING..', sleep: 'OFF (NGỦ)', wakeup: 'WAKE UP!'
+      };
+      stateBadge.textContent = labels[state.mode] || state.mode.toUpperCase();
+      modeButtons.forEach(btn => {
+        const m = btn.dataset.mode;
+        const isSleep = (m === 'sleep_toggle') && (state.mode === 'fall_asleep' || state.mode === 'sleep' || state.mode === 'wakeup');
+        btn.classList.toggle('selected', m === state.mode || isSleep);
+      });
+    }
+
+    function setMode(newMode, duration = 3.0, sound = true, resetNoTouch = false) {
+      state.mode = newMode;
+      state.animElapsed = 0;
+      state.modeDuration = duration;
+      state.idleCountdown = IDLE_INTERVAL_SEC;
+      if (resetNoTouch) state.noTouchElapsed = 0;
+      state.bounce = 1.0;
+      state.batHitSoundPlayed = false;
+      state.popSoundPlayed = false;
+      updateButtonsUI();
+      if (sound) {
+        if (newMode === 'fall_asleep') playChirp('sleep');
+        else playChirp(newMode);
+      }
+    }
+
+    function triggerTap() {
+      tapCount++;
+      tapCountEl.textContent = tapCount;
+      state.noTouchElapsed = 0;
+      cubeUnit.style.transform = 'translateY(4px) scale(0.985)';
+      setTimeout(() => { cubeUnit.style.transform = ''; }, 100);
+
+      if (state.mode === 'sleep' || state.mode === 'fall_asleep') {
+        setMode('wakeup', 3.15, true, true);
+        return;
+      }
+      const next = TAP_SEQUENCE[seqIndex % TAP_SEQUENCE.length];
+      seqIndex++;
+      setMode(next, next === 'idle' ? 999 : 2.6, true, true);
+    }
+
+    function onPressDown(e) {
+      e.preventDefault();
+      state.noTouchElapsed = 0;
+      if (state.mode === 'sleep' || state.mode === 'fall_asleep') {
+        tapCount++;
+        tapCountEl.textContent = tapCount;
+        touchPad.classList.add('active');
+        setTimeout(() => touchPad.classList.remove('active'), 150);
+        setMode('wakeup', 3.15, true, true);
+        return;
+      }
+      state.holding = true;
+      state.holdDuration = 0;
+      state.dizzyTriggeredInHold = false;
+      state.idleCountdown = IDLE_INTERVAL_SEC;
+      touchPad.classList.add('active');
+    }
+
+    function onPressUp() {
+      if (!state.holding) return;
+      const held = state.holdDuration;
+      state.holding = false;
+      state.holdDuration = 0;
+      holdBar.style.width = '0%';
+      touchPad.classList.remove('active');
+
+      if (!state.dizzyTriggeredInHold && held < HOLD_DIZZY_SEC) {
+        triggerTap();
+      } else if (state.mode === 'dizzy') {
+        state.modeDuration = state.animElapsed + 2.4;
+      }
+    }
+
+    touchPad.addEventListener('pointerdown', onPressDown);
+    cubeBody.addEventListener('pointerdown', onPressDown);
+    window.addEventListener('pointerup', onPressUp);
+    window.addEventListener('pointercancel', onPressUp);
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') { e.preventDefault(); triggerTap(); }
+      else if (e.code === 'KeyB') { setMode('baseball', 3.9, true, true); }
+      else if (e.code === 'KeyS') {
+        if (state.mode === 'sleep' || state.mode === 'fall_asleep') setMode('wakeup', 3.15, true, true);
+        else setMode('fall_asleep', 2.5, true, false);
+      }
+    });
+
+    modeButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const m = btn.dataset.mode;
+        if (m === 'sleep_toggle') {
+          if (state.mode === 'sleep' || state.mode === 'fall_asleep') setMode('wakeup', 3.15, true, true);
+          else setMode('fall_asleep', 2.5, true, false);
+          return;
+        }
+        const dur = (m === 'idle') ? 999 : (m === 'fortune' ? 4.3 : (m === 'baseball' || m === 'humming' ? 3.9 : 3.1));
+        setMode(m, dur, true, true);
+      });
+    });
+
+    function mochiHeadPath(cx, cy, rx, ryTop, ryBot) {
+      ctx.beginPath();
+      const steps = 48;
+      for (let i = 0; i <= steps; i++) {
+        const a = (i / steps) * Math.PI * 2;
+        const sa = Math.sin(a);
+        const ca = Math.cos(a);
+        const ry = (ryTop + ryBot) * 0.5 - (ryTop - ryBot) * 0.5 * sa;
+        const rHoriz = rx * (1 + 0.045 * sa);
+        const px = cx + ca * rHoriz;
+        const py = cy + sa * ry;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    }
+
+    function strokeNeonMochiHead(cx, cy, rx, ryTop, ryBot, scale = 1.0, alpha = 1.0) {
+      if (alpha <= 0.01) return;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      mochiHeadPath(cx, cy, rx * scale, ryTop * scale, ryBot * scale);
+      ctx.strokeStyle = 'rgba(29, 120, 240, 0.42)';
+      ctx.lineWidth = 15 * scale;
+      ctx.shadowColor = '#1d8cf8';
+      ctx.shadowBlur = 16;
+      ctx.stroke();
+
+      mochiHeadPath(cx, cy, rx * scale, ryTop * scale, ryBot * scale);
+      ctx.strokeStyle = '#249bff';
+      ctx.lineWidth = 10 * scale;
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 6;
+      ctx.stroke();
+
+      mochiHeadPath(cx, cy, rx * scale, ryTop * scale, ryBot * scale);
+      ctx.strokeStyle = '#67c6ff';
+      ctx.lineWidth = 2.5 * scale;
+      ctx.shadowBlur = 0;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function fillPill(cx, cy, w, h) {
+      const r = Math.min(w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(cx - w / 2 + r, cy - h / 2);
+      ctx.arcTo(cx + w / 2, cy - h / 2, cx + w / 2, cy + h / 2, r);
+      ctx.arcTo(cx + w / 2, cy + h / 2, cx - w / 2, cy + h / 2, r);
+      ctx.arcTo(cx - w / 2, cy + h / 2, cx - w / 2, cy - h / 2, r);
+      ctx.arcTo(cx - w / 2, cy - h / 2, cx + w / 2, cy - h / 2, r);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function drawStar(cx, cy, spikes, outerR, innerR, color) {
+      ctx.save();
+      ctx.fillStyle = color;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      let rot = (Math.PI / 2) * 3;
+      const step = Math.PI / spikes;
+      ctx.moveTo(cx, cy - outerR);
+      for (let i = 0; i < spikes; i++) {
+        ctx.lineTo(cx + Math.cos(rot) * outerR, cy + Math.sin(rot) * outerR);
+        rot += step;
+        ctx.lineTo(cx + Math.cos(rot) * innerR, cy + Math.sin(rot) * innerR);
+        rot += step;
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawBootHiScene(el) {
+      let pop = Math.min(1, el / 0.5);
+      const easePop = 1 + 1.8 * Math.pow(pop - 1, 3) + 0.8 * Math.pow(pop - 1, 2);
+      let exitMix = el > 2.45 ? Math.min(1, (el - 2.45) / 0.65) : 0;
+      const smoothExit = exitMix * exitMix * (3 - 2 * exitMix);
+
+      const hiAlpha = Math.min(1, Math.max(0, (el - 0.18) / 0.3)) * (1 - smoothExit);
+      if (hiAlpha > 0.01) {
+        ctx.save();
+        ctx.globalAlpha = hiAlpha;
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '700 44px system-ui, -apple-system, sans-serif';
+        const hiY = 92 + (1 - Math.min(1, (el - 0.18) / 0.35)) * 12;
+        ctx.fillText('Hi', 42, hiY);
+        ctx.restore();
+      }
+
+      const wiggle = Math.sin(el * 7) * 0.05 * (1 - smoothExit);
+      const tilt = (-0.50 + wiggle) * (1 - smoothExit);
+      const startX = 142, startY = 152 + (1 - easePop) * 65;
+      const cx = startX * (1 - smoothExit) + 120 * smoothExit;
+      const cy = startY * (1 - smoothExit) + 122 * smoothExit;
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(tilt);
+
+      if (smoothExit < 0.85) {
+        ctx.save();
+        ctx.beginPath();
+        const clipBottom = 16 + smoothExit * 55;
+        ctx.rect(-90, -90, 180, 90 + clipBottom);
+        ctx.clip();
+        strokeNeonMochiHead(0, 0, 62, 56, 46, 1.0);
+        ctx.restore();
+
+        ctx.strokeStyle = '#e0f7ff';
+        ctx.lineWidth = 4.5;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(-22, -6, 10, Math.PI * 1.15, Math.PI * 1.85);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(22, -6, 10, Math.PI * 1.15, Math.PI * 1.85);
+        ctx.stroke();
+      } else {
+        strokeNeonMochiHead(0, 0, 64, 56, 46, 1.0);
+        ctx.fillStyle = '#ffffff';
+        fillPill(-24, -2, 13, 24);
+        fillPill(24, -2, 13, 24);
+      }
+      ctx.restore();
+    }
+
+    function drawDizzyScene(t) {
+      const swayX = Math.sin(t * 12) * 7;
+      const swayY = Math.cos(t * 9) * 3;
+      const tilt = Math.sin(t * 10) * 0.14;
+
+      ctx.save();
+      ctx.translate(120 + swayX, 128 + swayY);
+      ctx.rotate(tilt);
+      strokeNeonMochiHead(0, 0, 64, 55, 46, 1.0);
+
+      [-25, 25].forEach((ex, idx) => {
+        ctx.save();
+        ctx.translate(ex, -1);
+        ctx.rotate(t * (idx === 0 ? 8.5 : -8.5));
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3.2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        for (let a = 0; a < Math.PI * 3.7; a += 0.2) {
+          const r = 1.6 + a * 1.45;
+          const px = Math.cos(a) * r;
+          const py = Math.sin(a) * r;
+          if (a === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+        ctx.restore();
+      });
+
+      ctx.strokeStyle = '#bae6fd';
+      ctx.lineWidth = 3;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-12, 22);
+      ctx.quadraticCurveTo(-6, 17, 0, 22);
+      ctx.quadraticCurveTo(6, 27, 12, 22);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.save();
+      const orbitCx = 120 + swayX * 0.6;
+      const orbitCy = 56;
+      ctx.strokeStyle = 'rgba(250, 204, 21, 0.32)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(orbitCx, orbitCy, 46, 12, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      for (let i = 0; i < 3; i++) {
+        const ang = t * 5.2 + (i * Math.PI * 2) / 3;
+        const sx = orbitCx + Math.cos(ang) * 46;
+        const sy = orbitCy + Math.sin(ang) * 12;
+        const sc = 0.75 + (Math.sin(ang) + 1) * 0.25;
+        drawStar(sx, sy, 5, 8 * sc, 3.8 * sc, '#facc15');
+      }
+      ctx.restore();
+    }
+
+    function drawYellowCap(cx, topY, scale, brimDir = 1) {
+      ctx.save();
+      ctx.translate(cx, topY);
+      ctx.scale(scale, scale);
+      ctx.fillStyle = '#facc15';
+      ctx.strokeStyle = '#ca8a04';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(0, 6, 32, Math.PI, Math.PI * 2);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, -27, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#eab308';
+      ctx.beginPath();
+      ctx.ellipse(brimDir * 18, 5, 24, 6.5, brimDir * 0.08, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawBaseballScene(el, t) {
+      if (el < 1.15) {
+        const cx = 128, cy = 144, sc = 0.68;
+        strokeNeonMochiHead(cx, cy, 64, 56, 46, sc);
+        drawYellowCap(cx, cy - 36, sc, 1);
+
+        ctx.fillStyle = '#ffffff';
+        fillPill(cx - 14, cy - 2, 8.5, 16);
+        fillPill(cx + 18, cy - 2, 8.5, 16);
+
+        const batWaggle = Math.sin(t * 14) * 0.08;
+        ctx.save();
+        ctx.translate(cx - 46, cy + 8);
+        ctx.rotate(-0.55 + batWaggle);
+        ctx.fillStyle = '#facc15';
+        ctx.strokeStyle = '#ca8a04';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(-6, -54, 13, 58, 6);
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = '#fef08a';
+        ctx.fillRect(-3.5, -6, 8, 12);
+        ctx.restore();
+
+        if (el > 0.50) {
+          const p = (el - 0.50) / 0.65;
+          const bx = 228 - p * 116;
+          const by = 92 + p * 46 - Math.sin(p * Math.PI) * 16;
+          ctx.save();
+          ctx.fillStyle = '#ffffff';
+          ctx.shadowColor = '#ffffff';
+          ctx.shadowBlur = 8;
+          ctx.beginPath();
+          ctx.arc(bx, by, 8.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      } else if (el < 1.62) {
+        if (!state.batHitSoundPlayed) {
+          state.batHitSoundPlayed = true;
+          playChirp('bat_hit');
+        }
+        const sw = (el - 1.15) / 0.47;
+        const cx = 122, cy = 144, sc = 0.68;
+
+        strokeNeonMochiHead(cx, cy, 68, 52, 46, sc);
+        drawYellowCap(cx, cy - 34, sc, 1);
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3.8;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(cx - 20, cy - 6); ctx.lineTo(cx - 11, cy); ctx.lineTo(cx - 20, cy + 6);
+        ctx.moveTo(cx + 20, cy - 6); ctx.lineTo(cx + 11, cy); ctx.lineTo(cx + 20, cy + 6);
+        ctx.stroke();
+
+        ctx.save();
+        ctx.strokeStyle = 'rgba(250, 204, 21, ' + (1 - sw * 0.5) + ')';
+        ctx.lineWidth = 18;
+        ctx.lineCap = 'round';
+        ctx.shadowColor = '#facc15';
+        ctx.shadowBlur = 16;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy + 4, 66, 24, -0.12, Math.PI * 0.85, Math.PI * (0.85 - sw * 1.15), true);
+        ctx.stroke();
+        ctx.restore();
+
+        const hitX = 112 + sw * 65;
+        const hitY = 138 - sw * 68;
+        if (sw < 0.45) drawStar(112, 138, 6, 20, 8, '#fef08a');
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(hitX, hitY, 8.5, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        const post = (el - 1.62) / 2.28;
+        const hop = Math.abs(Math.sin((el - 1.62) * 8.5)) * 8;
+        const cx = 120, cy = 144 - hop, sc = 0.72;
+
+        strokeNeonMochiHead(cx, cy, 64, 56, 46, sc);
+        drawYellowCap(cx, cy - 38, sc, 1);
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(cx - 16, cy - 2, 8.5, Math.PI * 1.15, Math.PI * 1.85);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(cx + 16, cy - 2, 8.5, Math.PI * 1.15, Math.PI * 1.85);
+        ctx.stroke();
+
+        if (post < 0.45) {
+          const bp = post / 0.45;
+          const bx = 177 + bp * 34;
+          const by = 70 - bp * 32;
+          ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(bx - 18, by + 16);
+          ctx.lineTo(bx, by);
+          ctx.stroke();
+
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(bx, by, Math.max(2, 7 * (1 - bp * 0.7)), 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          const twinkle = Math.max(0, 1 - (post - 0.45) / 0.50);
+          drawStar(208, 38, 4, 13 * twinkle, 4 * twinkle, '#fde047');
+        }
+      }
+    }
+
+    function drawFortuneScene(el, t) {
+      if (el < 1.10) {
+        const shakeAngle = Math.sin(t * 36) * 0.18;
+        ctx.save();
+        ctx.translate(120, 128);
+        ctx.rotate(shakeAngle);
+
+        ctx.strokeStyle = '#fef9c3';
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = 'round';
+        [-1, 1].forEach(dir => {
+          ctx.beginPath();
+          ctx.arc(dir * 42, -8, 16, dir > 0 ? -0.6 : Math.PI - 0.6, dir > 0 ? 0.6 : Math.PI + 0.6);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(dir * 50, -8, 20, dir > 0 ? -0.5 : Math.PI - 0.5, dir > 0 ? 0.5 : Math.PI + 0.5);
+          ctx.stroke();
+        });
+
+        ctx.fillStyle = '#fde047';
+        ctx.strokeStyle = '#ca8a04';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(0, 4, 46, Math.PI * 0.82, Math.PI * 2.18);
+        ctx.quadraticCurveTo(18, 28, 0, -6);
+        ctx.quadraticCurveTo(-18, 28, -38, 28);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = '#eab308';
+        ctx.beginPath();
+        ctx.moveTo(-14, 24);
+        ctx.quadraticCurveTo(0, -10, 14, 24);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      } else if (el < 2.25) {
+        const openP = Math.min(1, (el - 1.10) / 0.35);
+        const splitX = 22 + openP * 54;
+        const bannerY = 122 + openP * 24;
+
+        strokeNeonMochiHead(154, bannerY - 20, 64, 56, 46, 0.36);
+        ctx.fillStyle = '#ffffff';
+        fillPill(146, bannerY - 21, 4.5, 8);
+        fillPill(162, bannerY - 21, 4.5, 8);
+
+        [-1, 1].forEach(dir => {
+          ctx.save();
+          ctx.translate(120 + dir * splitX, bannerY + 18);
+          ctx.fillStyle = '#facc15';
+          ctx.strokeStyle = '#a16207';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.arc(0, 0, 24, dir < 0 ? Math.PI * 0.55 : -Math.PI * 0.45, dir < 0 ? Math.PI * 1.45 : Math.PI * 0.45);
+          ctx.lineTo(0, 18);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        });
+
+        const bw = 148 * openP;
+        if (bw > 24) {
+          ctx.save();
+          const bx = 120 - bw / 2;
+          ctx.fillStyle = '#dbeafe';
+          ctx.strokeStyle = '#60a5fa';
+          ctx.lineWidth = 2.5;
+          ctx.beginPath();
+          ctx.roundRect(bx, bannerY, bw, 36, 9);
+          ctx.fill();
+          ctx.stroke();
+
+          if (openP > 0.65) {
+            ctx.fillStyle = '#1e3a8a';
+            ctx.font = '700 18px system-ui, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Luck is Yours', 120, bannerY + 19);
+          }
+          ctx.restore();
+        }
+      } else {
+        const jumpPhase = (el - 2.25) * 8.2;
+        const hopSin = Math.abs(Math.sin(jumpPhase));
+        const hopHeight = hopSin * 28;
+
+        const landingPress = hopSin < 0.22 ? (1 - hopSin / 0.22) : 0;
+        const bannerDip = landingPress * 3.5;
+        const bannerY = 148 + bannerDip;
+
+        [-1, 1].forEach(dir => {
+          ctx.save();
+          ctx.translate(120 + dir * 78, bannerY + 18);
+          ctx.fillStyle = '#facc15';
+          ctx.strokeStyle = '#a16207';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.arc(0, 0, 20, dir < 0 ? Math.PI * 0.55 : -Math.PI * 0.45, dir < 0 ? Math.PI * 1.45 : Math.PI * 0.45);
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        });
+
+        ctx.save();
+        ctx.fillStyle = '#dbeafe';
+        ctx.strokeStyle = '#60a5fa';
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = 'rgba(56, 189, 248, 0.35)';
+        ctx.shadowBlur = 10;
+        ctx.beginPath();
+        ctx.roundRect(46, bannerY, 148, 36, 9);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#1e3a8a';
+        ctx.font = '700 18px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Luck is Yours', 120, bannerY + 19);
+        ctx.restore();
+
+        const petScale = 0.46;
+        const sx = 1 + landingPress * 0.14 - hopSin * 0.05;
+        const sy = 1 - landingPress * 0.14 + hopSin * 0.06;
+        const petBottomRadius = 46 * petScale * sy + 4;
+        const petCy = bannerY - petBottomRadius - hopHeight;
+
+        strokeNeonMochiHead(120, petCy, 64 * sx, 56 * sy, 46 * sy, petScale);
+
+        if (hopSin > 0.55) {
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 3.2;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.arc(109, petCy + 1, 5.5, Math.PI * 1.15, Math.PI * 1.85);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(131, petCy + 1, 5.5, Math.PI * 1.15, Math.PI * 1.85);
+          ctx.stroke();
+        } else {
+          ctx.fillStyle = '#ffffff';
+          fillPill(109, petCy - 1, 5.5, 10 * sy);
+          fillPill(131, petCy - 1, 5.5, 10 * sy);
+        }
+
+        drawStar(62, 86 - hopSin * 4, 4, 7, 2.5, '#facc15');
+        drawStar(178, 92 - hopSin * 4, 4, 7, 2.5, '#38bdf8');
+      }
+    }
+
+    function drawHummingScene(el, t) {
+      const side = el < 1.6 ? -1 : (el < 2.9 ? 1 : -0.4);
+      const sway = Math.sin(t * 8) * 5;
+      const cx = 120 - side * 12 + sway * 0.4;
+      const cy = 128;
+
+      strokeNeonMochiHead(cx, cy, 64, 56, 46, 0.72);
+
+      ctx.save();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(cx - 17, cy - 2, 8.5, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(cx + 17, cy - 2, 8.5, Math.PI * 1.15, Math.PI * 1.85);
+      ctx.stroke();
+
+      const puffX = cx + side * 38 + Math.sin(t * 18) * 4;
+      const puffY = cy + 8 + Math.cos(t * 14) * 3;
+
+      ctx.strokeStyle = '#e2e8f0';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(cx + side * 8, cy + 12);
+      ctx.lineTo(puffX, puffY);
+      ctx.stroke();
+
+      const cloudCircles = [[0, 0, 15], [-10, -4, 11], [10, -3, 11], [-6, 7, 10], [8, 6, 10]];
+      ctx.fillStyle = '#38bdf8';
+      cloudCircles.forEach(([dx, dy, r]) => {
+        ctx.beginPath();
+        ctx.arc(puffX + dx, puffY + dy, r + 2.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.fillStyle = '#f0f9ff';
+      cloudCircles.forEach(([dx, dy, r]) => {
+        ctx.beginPath();
+        ctx.arc(puffX + dx, puffY + dy, r - 1.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      const noteX = cx - side * 46;
+      const noteFloat = (t * 22) % 24;
+      const ny = cy - 22 - noteFloat;
+      ctx.strokeStyle = '#38bdf8';
+      ctx.fillStyle = '#38bdf8';
+      ctx.lineWidth = 2.8;
+      ctx.beginPath();
+      ctx.arc(noteX - 6, ny + 8, 4, 0, Math.PI * 2);
+      ctx.arc(noteX + 6, ny + 5, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(noteX - 3, ny + 8);
+      ctx.lineTo(noteX - 3, ny - 6);
+      ctx.lineTo(noteX + 9, ny - 9);
+      ctx.lineTo(noteX + 9, ny + 5);
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(puffX + side * 22, puffY - 22, 3, 3);
+      ctx.fillRect(cx - side * 24, cy - 48, 2.5, 2.5);
+      ctx.restore();
+    }
+
+    function drawGlossySleepBubble(bx, by, r, alpha = 1.0) {
+      if (r < 2) return;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = 'rgba(56, 189, 248, 0.28)';
+      ctx.strokeStyle = '#7dd3fc';
+      ctx.shadowColor = '#0284c7';
+      ctx.shadowBlur = 10;
+      ctx.lineWidth = 2.6;
+      ctx.beginPath();
+      ctx.arc(bx, by, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      if (r > 6) {
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.arc(bx, by, r * 0.68, Math.PI * 1.12, Math.PI * 1.48);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawClosedSleepyEyes(ox = 0, oy = 0, alpha = 1.0) {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = '#38bdf8';
+      ctx.shadowColor = '#0284c7';
+      ctx.shadowBlur = 8;
+      ctx.lineWidth = 4.2;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.arc(96 + ox, 112 + oy, 10, Math.PI * 0.15, Math.PI * 0.85);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(144 + ox, 112 + oy, 10, Math.PI * 0.15, Math.PI * 0.85);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawFallAsleepScene(el) {
+      if (el < 0.70) {
+        strokeNeonMochiHead(120, 122, 64, 56, 46, 1.0, 1 - el / 0.70);
+      }
+      const faceAlpha = el < 2.0 ? 1.0 : Math.max(0, 1 - (el - 2.0) / 0.50);
+      drawClosedSleepyEyes(0, 0, faceAlpha);
+      const breathR = 7 + Math.sin(Math.min(1, el / 2.0) * Math.PI) * 11;
+      drawGlossySleepBubble(110 - breathR * 0.35, 134 - breathR * 0.15, breathR, faceAlpha);
+    }
+
+    function drawWakeUpScene(el) {
+      if (el < 0.75) {
+        const p = el / 0.75;
+        const wobble = Math.sin(el * 28) * (p * 1.5);
+        drawClosedSleepyEyes(0, 0, 1.0);
+        const r = 9 + p * 16;
+        const bx = 113 - p * 8 + wobble;
+        const by = 133 - p * 4 - wobble * 0.5;
+        drawGlossySleepBubble(bx, by, r, 1.0);
+      } else if (el < 1.12) {
+        if (!state.popSoundPlayed) {
+          state.popSoundPlayed = true;
+          playChirp('bubble_pop');
+        }
+        const popP = (el - 0.75) / 0.37;
+        const bx = 105, by = 129;
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, 1 - popP);
+        ctx.strokeStyle = '#bae6fd';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(bx, by, 22 + popP * 18, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = '#7dd3fc';
+        for (let i = 0; i < 8; i++) {
+          const ang = (i / 8) * Math.PI * 2 + 0.3;
+          const dist = 18 + popP * 30;
+          const dx = bx + Math.cos(ang) * dist;
+          const dy = by + Math.sin(ang) * dist;
+          ctx.beginPath();
+          ctx.arc(dx, dy, Math.max(1.2, 3.8 * (1 - popP * 0.7)), 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        const joltY = Math.sin(popP * Math.PI) * -5;
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = '#4cc2ff';
+        ctx.lineWidth = 4.2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(89, 108 + joltY); ctx.lineTo(101, 114 + joltY); ctx.lineTo(89, 120 + joltY);
+        ctx.moveTo(151, 108 + joltY); ctx.lineTo(139, 114 + joltY); ctx.lineTo(151, 120 + joltY);
+        ctx.stroke();
+        ctx.restore();
+      } else if (el < 2.55) {
+        const gEl = el - 1.12;
+        const swayX = Math.sin(gEl * 4.8) * 4.5;
+        const swayY = Math.cos(gEl * 3.5) * 2;
+        const heavyBlink = Math.exp(-Math.pow((gEl - 0.58) / 0.18, 2));
+        const lidDrop = 0.48 + heavyBlink * 0.42;
+
+        ctx.save();
+        const eyeY = 117 + swayY;
+        [96 + swayX, 144 + swayX].forEach((ex, idx) => {
+          const lidY = eyeY - 11 + lidDrop * 21;
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(ex, eyeY, 11, 0, Math.PI * 2);
+          ctx.clip();
+
+          ctx.fillStyle = '#4cc2ff';
+          ctx.fillRect(ex - 14, eyeY - 14, 28, 28);
+
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(ex - 15, eyeY - 15, 30, lidY - (eyeY - 15));
+          ctx.restore();
+
+          const slant = (idx === 0 ? -1.5 : 1.5);
+          ctx.strokeStyle = '#7dd3fc';
+          ctx.lineWidth = 3.5;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(ex - 12, lidY - slant);
+          ctx.lineTo(ex + 12, lidY + slant);
+          ctx.stroke();
+        });
+
+        const yawnP = Math.max(0, Math.sin(Math.min(1, gEl / 1.25) * Math.PI));
+        if (yawnP > 0.08) {
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath();
+          ctx.ellipse(120 + swayX, 139 + swayY, 4.5 + yawnP * 3.5, 2.5 + yawnP * 6.5, 0, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      } else {
+        const p = Math.min(1, (el - 2.55) / 0.55);
+        const shakeX = Math.sin(p * Math.PI * 5) * 4 * (1 - p);
+        strokeNeonMochiHead(120 + shakeX, 122, 64, 56, 46, 0.92 + 0.08 * p, p);
+        ctx.save();
+        ctx.fillStyle = p > 0.45 ? '#ffffff' : '#bae6fd';
+        const eh = 18 + 7 * p;
+        fillPill(96 + shakeX, 120, 14 - p, eh);
+        fillPill(144 + shakeX, 120, 14 - p, eh);
+        ctx.restore();
+      }
+    }
+
+    function drawMainPetFace(t) {
+      const holdPress = state.holding ? Math.min(1, state.holdDuration / HOLD_DIZZY_SEC) : 0;
+      const shakeX = holdPress > 0.15 ? Math.sin(t * 45) * (holdPress * 4) : 0;
+
+      const bounceScaleX = 1 + Math.sin(state.bounce * Math.PI) * 0.06 + holdPress * 0.08;
+      const bounceScaleY = 1 - Math.sin(state.bounce * Math.PI) * 0.05 - state.angerMix * 0.04 - holdPress * 0.09;
+      const bobY = Math.sin(t * 2.5) * 2.2 + (state.happyMix * Math.sin(t * 9) * 2.5) + holdPress * 5;
+
+      const cx = 120 + shakeX;
+      const cy = 122 + bobY;
+
+      strokeNeonMochiHead(cx, cy, 64 * bounceScaleX, 56 * bounceScaleY, 46 * bounceScaleY, 1.0);
+
+      const eyeOffsetX = 24;
+      const gx = state.gazeX * (1 - state.happyMix);
+      const gy = state.gazeY * (1 - state.happyMix);
+
+      ctx.save();
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      if (holdPress > 0.2) {
+        ctx.lineWidth = 5;
+        ctx.beginPath();
+        ctx.moveTo(cx - eyeOffsetX - 7, cy - 9);
+        ctx.lineTo(cx - eyeOffsetX + 7, cy);
+        ctx.lineTo(cx - eyeOffsetX - 7, cy + 9);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(cx + eyeOffsetX + 7, cy - 9);
+        ctx.lineTo(cx + eyeOffsetX - 7, cy);
+        ctx.lineTo(cx + eyeOffsetX + 7, cy + 9);
+        ctx.stroke();
+      } else if (state.angerMix > 0.45) {
+        const tilt = 0.46 * state.angerMix;
+        [-1, 1].forEach(dir => {
+          ctx.save();
+          ctx.translate(cx + dir * eyeOffsetX + gx * 0.5, cy + 2 + gy * 0.5);
+          ctx.rotate(dir * tilt);
+          ctx.beginPath();
+          ctx.arc(0, 0, 12.5, 0, Math.PI, false);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        });
+      } else if (state.happyMix > 0.45) {
+        const eyeH = Math.max(4, 15 * state.blink);
+        fillPill(cx - 22, cy - 13, 10.5, eyeH);
+        fillPill(cx + 22, cy - 13, 10.5, eyeH);
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(cx, cy - 2, 24, 0.16 * Math.PI, 0.84 * Math.PI);
+        ctx.stroke();
+      } else if (state.blinking && state.blink < 0.38 && state.winkMix < 0.3) {
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(cx - eyeOffsetX + gx, cy + 4 + gy, 10, Math.PI * 1.15, Math.PI * 1.85);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(cx + eyeOffsetX + gx, cy + 4 + gy, 10, Math.PI * 1.15, Math.PI * 1.85);
+        ctx.stroke();
+      } else {
+        const eyeW = 13;
+        const eyeH = Math.max(5, 25 * state.blink);
+        fillPill(cx - eyeOffsetX + gx, cy - 2 + gy, eyeW, eyeH);
+        if (state.winkMix > 0.4) {
+          ctx.lineWidth = 5.5;
+          const rx = cx + eyeOffsetX + gx;
+          const ry = cy - 2 + gy;
+          ctx.beginPath();
+          ctx.moveTo(rx + 7, ry - 10);
+          ctx.lineTo(rx - 8, ry);
+          ctx.lineTo(rx + 7, ry + 10);
+          ctx.stroke();
+        } else {
+          fillPill(cx + eyeOffsetX + gx, cy - 2 + gy, eyeW, eyeH);
+        }
+      }
+      ctx.restore();
+    }
+
+    let lastTime = performance.now();
+
+    function tick(now) {
+      const dt = Math.min(0.05, (now - lastTime) / 1000);
+      lastTime = now;
+      const t = now / 1000;
+
+      state.animElapsed += dt;
+
+      if (state.holding) {
+        state.holdDuration += dt;
+        holdBar.style.width = Math.min(100, (state.holdDuration / HOLD_DIZZY_SEC) * 100) + '%';
+        if (!state.dizzyTriggeredInHold && state.holdDuration >= HOLD_DIZZY_SEC) {
+          state.dizzyTriggeredInHold = true;
+          setMode('dizzy', 999, true, true);
+        }
+      }
+
+      if (!state.holding) {
+        if (state.mode === 'fall_asleep') {
+          idleBadge.textContent = 'ZZZ';
+          if (state.animElapsed >= state.modeDuration) {
+            state.mode = 'sleep';
+            state.animElapsed = 0;
+            updateButtonsUI();
+          }
+        } else if (state.mode === 'sleep') {
+          idleBadge.textContent = 'CHẠM ĐỂ THỨC';
+        } else if (state.mode !== 'idle') {
+          if (idle15Toggle.checked) state.noTouchElapsed += dt;
+          if (state.animElapsed >= state.modeDuration) {
+            state.mode = 'idle';
+            state.animElapsed = 0;
+            state.idleCountdown = IDLE_INTERVAL_SEC;
+            updateButtonsUI();
+          }
+          idleBadge.textContent = '15s';
+        } else if (idle15Toggle.checked) {
+          state.noTouchElapsed += dt;
+          state.idleCountdown -= dt;
+          idleBadge.textContent = Math.max(0, Math.ceil(state.idleCountdown)) + 's';
+
+          if (state.noTouchElapsed >= AUTO_SLEEP_SEC) {
+            setMode('fall_asleep', 2.5, true, false);
+          } else if (state.idleCountdown <= 0) {
+            const nextStory = IDLE_STORIES[storyIndex % IDLE_STORIES.length];
+            storyIndex++;
+            const dur = nextStory === 'fortune' ? 4.3 : 3.9;
+            setMode(nextStory, dur, true, false);
+          }
+        } else {
+          idleBadge.textContent = 'OFF';
+        }
+      }
+
+      state.nextBlink -= dt;
+      if (state.nextBlink <= 0 && !state.blinking) {
+        state.blinking = true;
+        state.blinkPhase = 0;
+        state.nextBlink = 2.4 + Math.random() * 2.8;
+      }
+      if (state.blinking) {
+        state.blinkPhase += dt * 11;
+        if (state.blinkPhase >= Math.PI) {
+          state.blinking = false;
+          state.blink = 1.0;
+        } else {
+          state.blink = Math.max(0.08, 1 - Math.sin(state.blinkPhase));
+        }
+      }
+
+      state.nextGaze -= dt;
+      if (state.nextGaze <= 0) {
+        state.nextGaze = 1.6 + Math.random() * 2.4;
+        if (Math.random() < 0.55) {
+          state.targetGazeX = 0; state.targetGazeY = 0;
+        } else {
+          state.targetGazeX = (Math.random() - 0.5) * 11;
+          state.targetGazeY = (Math.random() - 0.5) * 6;
+        }
+      }
+
+      const lerpSpeed = Math.min(1, dt * 12);
+      state.gazeX += (state.targetGazeX - state.gazeX) * lerpSpeed;
+      state.gazeY += (state.targetGazeY - state.gazeY) * lerpSpeed;
+      state.bounce = Math.max(0, state.bounce - dt * 5.5);
+
+      state.angerMix += ((state.mode === 'angry' ? 1 : 0) - state.angerMix) * lerpSpeed;
+      state.happyMix += ((state.mode === 'happy' ? 1 : 0) - state.happyMix) * lerpSpeed;
+      state.winkMix  += ((state.mode === 'wink'  ? 1 : 0) - state.winkMix)  * lerpSpeed;
+
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, 240, 240);
+
+      if (state.mode === 'sleep') {
+        // Screen stays 100% pitch black
+      } else if (state.mode === 'fall_asleep') drawFallAsleepScene(state.animElapsed);
+      else if (state.mode === 'wakeup') drawWakeUpScene(state.animElapsed);
+      else if (state.mode === 'boot') drawBootHiScene(state.animElapsed);
+      else if (state.mode === 'dizzy') drawDizzyScene(t);
+      else if (state.mode === 'baseball') drawBaseballScene(state.animElapsed, t);
+      else if (state.mode === 'fortune') drawFortuneScene(state.animElapsed, t);
+      else if (state.mode === 'humming') drawHummingScene(state.animElapsed, t);
+      else drawMainPetFace(t);
+
+      requestAnimationFrame(tick);
+    }
+
+    updateButtonsUI();
+    requestAnimationFrame(tick);
+  </script>
+</body>
+</html>
