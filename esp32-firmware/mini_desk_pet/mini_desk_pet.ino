@@ -118,8 +118,23 @@ const PetMode IDLE_STORIES[] = {
 };
 const int IDLE_STORY_LEN = sizeof(IDLE_STORIES) / sizeof(IDLE_STORIES[0]);
 
+const char* const LUCKY_WISHES[] = {
+  "Luck is Yours",
+  "Stay Happy :)",
+  "Good Vibes Only",
+  "Big Win Ahead!",
+  "You Got This!",
+  "Shine Bright!",
+  "Money & Joy!",
+  "Best Day Ever",
+  "Dream Big!",
+  "Keep Smiling!"
+};
+const int LUCKY_WISH_LEN = sizeof(LUCKY_WISHES) / sizeof(LUCKY_WISHES[0]);
+
 int seqIndex   = 0;
 int storyIndex = 0;
+int wishIndex  = 0;
 
 struct PetState {
   PetMode mode           = MODE_BOOT;
@@ -149,6 +164,7 @@ struct PetState {
   bool    dizzyTriggeredInHold = false;
   bool    batHitPlayed         = false;
   bool    popPlayed            = false;
+  const char* currentWish      = "Luck is Yours";
 } pet;
 
 unsigned long lastFrameMs = 0;
@@ -165,21 +181,21 @@ uint16_t colYellow;
 uint16_t colYellowLight;
 uint16_t colGoldDark;
 uint16_t colBannerBg;
-uint16_t colBannerText;
+uint16_t colBannerShadow;
 
 void initPalette() {
-  colBg          = tft.color565(0, 0, 0);
-  colHaloBlue    = tft.color565(14, 58, 138);
-  colSkyBlue     = tft.color565(36, 155, 255);
-  colSleepBlue   = tft.color565(56, 189, 248);
-  colBubbleFill  = tft.color565(14, 72, 128);
-  colIceBlue     = tft.color565(135, 212, 255);
-  colWhite       = tft.color565(255, 255, 255);
-  colYellow      = tft.color565(250, 204, 21);
-  colYellowLight = tft.color565(254, 240, 138);
-  colGoldDark    = tft.color565(180, 115, 8);
-  colBannerBg    = tft.color565(219, 234, 254);
-  colBannerText  = tft.color565(30, 58, 138);
+  colBg           = tft.color565(0, 0, 0);
+  colHaloBlue     = tft.color565(14, 58, 138);
+  colSkyBlue      = tft.color565(36, 155, 255);
+  colSleepBlue    = tft.color565(56, 189, 248);
+  colBubbleFill   = tft.color565(14, 72, 128);
+  colIceBlue      = tft.color565(135, 212, 255);
+  colWhite        = tft.color565(255, 255, 255);
+  colYellow       = tft.color565(250, 204, 21);
+  colYellowLight  = tft.color565(254, 240, 138);
+  colGoldDark     = tft.color565(180, 115, 8);
+  colBannerBg     = tft.color565(234, 168, 8);
+  colBannerShadow = tft.color565(146, 78, 4);
 }
 
 void setBacklight(bool on) {
@@ -240,6 +256,10 @@ void setPetMode(PetMode newMode, float durationSec = 3.0f, bool sound = true, bo
   pet.modeDuration  = durationSec;
   pet.idleCountdown = IDLE_INTERVAL_SEC;
   if (resetNoTouch) pet.noTouchElapsed = 0.0f;
+  if (newMode == MODE_FORTUNE) {
+    pet.currentWish = LUCKY_WISHES[wishIndex % LUCKY_WISH_LEN];
+    wishIndex++;
+  }
   pet.bounce        = 1.0f;
   pet.batHitPlayed  = false;
   pet.popPlayed     = false;
@@ -528,17 +548,23 @@ void drawBaseballScene(float el, float t) {
   }
 }
 
-// ======================= 4. BÁNH MAY MẮN: NHẢY TRÊN CHỮ "Luck is Yours" =======================
+// ======================= 4. BÁNH MAY MẮN: CHỮ TRẮNG NỀN VÀNG + NHIỀU CÂU CHÚC =======================
 void drawLuckBanner(int bannerY, int bw) {
   int bx = 120 - bw / 2;
   canvas.fillSmoothRoundRect(bx, bannerY, bw, 36, 9, colBannerBg);
-  canvas.drawRoundRect(bx, bannerY, bw, 36, 9, colSkyBlue);
-  if (bw >= 110) {
+  canvas.drawRoundRect(bx, bannerY, bw, 36, 9, colYellowLight);
+  if (bw >= 120) {
     canvas.setFont(&fonts::FreeSansBold9pt7b);
-    canvas.setTextColor(colBannerText);
-    int tw = canvas.textWidth("Luck is Yours");
-    canvas.setCursor(120 - tw / 2, bannerY + 11);
-    canvas.print("Luck is Yours");
+    int tw = canvas.textWidth(pet.currentWish);
+    int tx = 120 - tw / 2;
+    // Đổ bóng 1px vàng sẫm để chữ trắng nổi bật sắc nét trên nền vàng
+    canvas.setTextColor(colBannerShadow);
+    canvas.setCursor(tx + 1, bannerY + 12);
+    canvas.print(pet.currentWish);
+
+    canvas.setTextColor(colWhite);
+    canvas.setCursor(tx, bannerY + 11);
+    canvas.print(pet.currentWish);
   }
 }
 
@@ -560,20 +586,20 @@ void drawFortuneScene(float el, float t) {
   } else if (el < 2.25f) {
     float openP = (el - 1.10f) / 0.35f;
     if (openP > 1.0f) openP = 1.0f;
-    int splitX  = 22 + (int)(openP * 54.0f);
+    int splitX  = 22 + (int)(openP * 64.0f);
     int bannerY = 122 + (int)(openP * 24.0f);
 
     drawMochiHead(154.0f, (float)(bannerY - 20), 64.0f, 56.0f, 46.0f, 0.36f);
     drawPillEye(146, bannerY - 21, 4, 8, colWhite);
     drawPillEye(162, bannerY - 21, 4, 8, colWhite);
 
-    canvas.fillArc(120 - splitX, bannerY + 18, 24, 4, 110, 250, colYellow);
-    canvas.fillArc(120 + splitX, bannerY + 18, 24, 4, 290, 70,  colYellow);
+    canvas.fillArc(120 - splitX, bannerY + 18, 22, 4, 110, 250, colYellowLight);
+    canvas.fillArc(120 + splitX, bannerY + 18, 22, 4, 290, 70,  colYellowLight);
 
-    int bw = (int)(148.0f * openP);
+    int bw = (int)(166.0f * openP);
     if (bw > 24) drawLuckBanner(bannerY, bw);
   } else {
-    // Pha 3: Pet nhảy tưng tưng NGAY TRÊN DÒNG CHỮ "Luck is Yours"!
+    // Pha 3: Pet nhảy tưng tưng NGAY TRÊN BĂNG RÔN NỀN VÀNG CHỮ TRẮNG!
     float jumpPhase    = (el - 2.25f) * 8.2f;
     float hopSin       = fabsf(sinf(jumpPhase));
     float hopHeight    = hopSin * 28.0f;
@@ -581,10 +607,9 @@ void drawFortuneScene(float el, float t) {
 
     int bannerY = 148 + (int)(landingPress * 3.5f);
 
-    // Hai đầu bánh quy vàng kèm nguyên vẹn dòng chữ "Luck is Yours"
-    canvas.fillArc(120 - 78, bannerY + 18, 20, 3, 110, 250, colYellow);
-    canvas.fillArc(120 + 78, bannerY + 18, 20, 3, 290, 70,  colYellow);
-    drawLuckBanner(bannerY, 148);
+    canvas.fillArc(120 - 87, bannerY + 18, 18, 3, 110, 250, colYellowLight);
+    canvas.fillArc(120 + 87, bannerY + 18, 18, 3, 290, 70,  colYellowLight);
+    drawLuckBanner(bannerY, 166);
 
     // Pet nhảy chạm đúng mép trên băng rôn "Luck is Yours" có độ nhún đàn hồi
     float petScale        = 0.46f;
