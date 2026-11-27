@@ -239,6 +239,8 @@
         <button class="mode-btn" data-mode="wink">😉 Nháy mắt (o &lt;)</button>
         <button class="mode-btn" data-mode="angry">😠 Cau mày (\ /)</button>
         <button class="mode-btn" data-mode="happy">😊 Cười tươi (:D)</button>
+        <button class="mode-btn" data-mode="freeze">🥶 Lạnh cóng &rarr; Đóng tảng băng</button>
+        <button class="mode-btn" data-mode="melt">🫠 Đỏ mặt &rarr; Tan chảy bốc hơi</button>
         <button class="mode-btn" data-mode="dizzy">😵 Bị choáng (Giữ &gt;0.5s)</button>
         <button class="mode-btn" data-mode="baseball">⚾ Đánh bóng chày (Mũ vàng)</button>
         <button class="mode-btn" data-mode="fortune">🥠 Nhảy trên chữ Luck is Yours</button>
@@ -273,8 +275,8 @@
     const idle15Toggle = document.getElementById('idle15Toggle');
     const modeButtons = document.querySelectorAll('.mode-btn');
 
-    const TAP_SEQUENCE = ['wink', 'angry', 'happy', 'idle', 'angry', 'wink', 'happy'];
-    const IDLE_STORIES = ['baseball', 'fortune', 'humming'];
+    const TAP_SEQUENCE = ['wink', 'angry', 'happy', 'idle', 'freeze', 'melt', 'wink', 'happy'];
+    const IDLE_STORIES = ['baseball', 'fortune', 'freeze', 'melt', 'humming'];
     const LUCKY_WISHES = [
       'Luck is Yours',
       'Stay Happy :)',
@@ -320,6 +322,9 @@
       dizzyTriggeredInHold: false,
       batHitSoundPlayed: false,
       popSoundPlayed: false,
+      boilSoundPlayed: false,
+      iceSoundPlayed: false,
+      shatterSoundPlayed: false,
       currentWish: LUCKY_WISHES[0]
     };
 
@@ -376,6 +381,47 @@
           osc.frequency.exponentialRampToValueAtTime(520, now + 0.14);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
           osc.start(now); osc.stop(now + 0.18);
+        } else if (type === 'melt') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(480, now);
+          osc.frequency.exponentialRampToValueAtTime(980, now + 0.16);
+          osc.frequency.exponentialRampToValueAtTime(300, now + 0.42);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+          osc.start(now); osc.stop(now + 0.45);
+        } else if (type === 'boil') {
+          osc.type = 'triangle';
+          gain.gain.setValueAtTime(0.07, now);
+          osc.frequency.setValueAtTime(520, now);
+          osc.frequency.setValueAtTime(790, now + 0.05);
+          osc.frequency.setValueAtTime(460, now + 0.10);
+          osc.frequency.setValueAtTime(920, now + 0.15);
+          osc.frequency.setValueAtTime(640, now + 0.20);
+          osc.frequency.exponentialRampToValueAtTime(1400, now + 0.34);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+          osc.start(now); osc.stop(now + 0.38);
+        } else if (type === 'freeze') {
+          osc.type = 'square';
+          gain.gain.setValueAtTime(0.04, now);
+          osc.frequency.setValueAtTime(920, now);
+          osc.frequency.setValueAtTime(1180, now + 0.05);
+          osc.frequency.setValueAtTime(920, now + 0.10);
+          osc.frequency.setValueAtTime(1180, now + 0.15);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+          osc.start(now); osc.stop(now + 0.22);
+        } else if (type === 'ice_lock') {
+          osc.type = 'sine';
+          gain.gain.setValueAtTime(0.08, now);
+          osc.frequency.setValueAtTime(1318, now);
+          osc.frequency.exponentialRampToValueAtTime(2093, now + 0.16);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+          osc.start(now); osc.stop(now + 0.24);
+        } else if (type === 'ice_shatter') {
+          osc.type = 'triangle';
+          gain.gain.setValueAtTime(0.09, now);
+          osc.frequency.setValueAtTime(1950, now);
+          osc.frequency.exponentialRampToValueAtTime(620, now + 0.14);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+          osc.start(now); osc.stop(now + 0.18);
         } else if (type === 'wink') {
           osc.type = 'sine';
           osc.frequency.setValueAtTime(880, now);
@@ -408,7 +454,7 @@
     function updateButtonsUI() {
       const labels = {
         boot: 'HI!', idle: 'IDLE', wink: 'WINK', angry: 'ANGRY',
-        happy: 'HAPPY', dizzy: 'DIZZY', baseball: 'BASEBALL',
+        happy: 'HAPPY', melt: 'MELTING', freeze: 'FROZEN', dizzy: 'DIZZY', baseball: 'BASEBALL',
         fortune: 'LUCK', humming: 'MUSIC',
         fall_asleep: 'SLEEPING..', sleep: 'OFF (NGỦ)', wakeup: 'WAKE UP!'
       };
@@ -433,6 +479,9 @@
       state.bounce = 1.0;
       state.batHitSoundPlayed = false;
       state.popSoundPlayed = false;
+      state.boilSoundPlayed = false;
+      state.iceSoundPlayed = false;
+      state.shatterSoundPlayed = false;
       updateButtonsUI();
       if (sound) {
         if (newMode === 'fall_asleep') playChirp('sleep');
@@ -453,7 +502,7 @@
       }
       const next = TAP_SEQUENCE[seqIndex % TAP_SEQUENCE.length];
       seqIndex++;
-      setMode(next, next === 'idle' ? 999 : 2.6, true, true);
+      setMode(next, next === 'idle' ? 999 : ((next === 'melt' || next === 'freeze') ? 5.0 : 2.6), true, true);
     }
 
     function onPressDown(e) {
@@ -496,6 +545,8 @@
 
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space') { e.preventDefault(); triggerTap(); }
+      else if (e.code === 'KeyM') { setMode('melt', 5.0, true, true); }
+      else if (e.code === 'KeyF') { setMode('freeze', 5.0, true, true); }
       else if (e.code === 'KeyB') { setMode('baseball', 3.9, true, true); }
       else if (e.code === 'KeyS') {
         if (state.mode === 'sleep' || state.mode === 'fall_asleep') setMode('wakeup', 3.15, true, true);
@@ -511,7 +562,7 @@
           else setMode('fall_asleep', 2.5, true, false);
           return;
         }
-        const dur = (m === 'idle') ? 999 : (m === 'fortune' ? 4.3 : (m === 'baseball' || m === 'humming' ? 3.9 : 3.1));
+        const dur = (m === 'idle') ? 999 : (m === 'fortune' ? 4.3 : (m === 'baseball' || m === 'humming' ? 3.9 : ((m === 'melt' || m === 'freeze') ? 5.0 : 3.1)));
         setMode(m, dur, true, true);
       });
     });
@@ -1331,6 +1382,457 @@
       }
     }
 
+    function drawMeltScene(el, t) {
+      if (el >= 4.35) {
+        const rp = Math.min(1, (el - 4.35) / 0.55);
+        const easeBack = 1 + 2.2 * Math.pow(rp - 1, 3) + 1.2 * Math.pow(rp - 1, 2);
+        const sc = Math.max(0.1, 0.25 + 0.75 * easeBack);
+
+        const fadeSteam = Math.max(0, 1 - rp * 1.5);
+        if (fadeSteam > 0.02) {
+          ctx.save();
+          ctx.globalAlpha = fadeSteam * 0.5;
+          ctx.fillStyle = '#e2e8f0';
+          ctx.beginPath();
+          ctx.arc(95, 42 - rp * 18, 10, 0, Math.PI * 2);
+          ctx.arc(145, 38 - rp * 20, 12, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        strokeNeonMochiHead(120, 122, 64, 56, 46, sc, Math.min(1, rp * 2));
+        ctx.fillStyle = '#ffffff';
+        fillPill(120 - 24 * sc, 120, 13 * sc, 24 * sc);
+        fillPill(120 + 24 * sc, 120, 13 * sc, 24 * sc);
+        return;
+      }
+
+      const heat = Math.min(1, el / 1.05);
+      let m = 0;
+      if (el > 1.20) {
+        const mp = Math.min(1, (el - 1.20) / 1.30);
+        m = mp * mp * (3 - 2 * mp);
+      }
+      let boilP = 0;
+      if (el > 2.60) {
+        if (!state.boilSoundPlayed) {
+          state.boilSoundPlayed = true;
+          playChirp('boil');
+        }
+        boilP = Math.min(1, (el - 2.60) / 1.70);
+      }
+
+      const evapRemain = 1 - Math.pow(boilP, 1.35);
+      const floorY = 186;
+
+      const rMain = Math.round(36 + heat * 219);
+      const gMain = Math.round(155 - heat * 90 + boilP * 35);
+      const bMain = Math.round(255 - heat * 200);
+      const mainCol = `rgb(${rMain},${gMain},${bMain})`;
+
+      const rHalo = Math.round(29 + heat * 195);
+      const gHalo = Math.round(120 - heat * 88);
+      const bHalo = Math.round(240 - heat * 205);
+      const haloCol = `rgba(${rHalo},${gHalo},${bHalo},${0.46 * Math.min(1, evapRemain * 1.4)})`;
+
+      const coreCol = heat > 0.5 ? '#fecaca' : '#67c6ff';
+
+      const heatTremble = (el < 1.35 ? Math.sin(t * 48) * 2.5 * heat : Math.sin(t * 36) * 2.2 * (boilP > 0 ? 1 : 0.3));
+      const cx = 120 + heatTremble;
+      const cy = 122 + m * 46 + (1 - evapRemain) * 16;
+
+      if (evapRemain > 0.04) {
+        const hScale = 0.25 + 0.75 * evapRemain;
+        const vScale = evapRemain;
+
+        function traceBoilingMochiPath() {
+          ctx.beginPath();
+          const steps = 56;
+          for (let i = 0; i <= steps; i++) {
+            const a = (i / steps) * Math.PI * 2;
+            const sa = Math.sin(a);
+            const ca = Math.cos(a);
+
+            const rxBase = 64 * (1 + m * 0.42) * hScale * (1 + (0.045 + m * 0.22) * Math.max(0, sa));
+            const boilRipple = (boilP > 0 ? Math.sin(a * 7 + t * 26) * 3.5 * vScale : 0);
+            const puddleWave = m * (sa > -0.1 ? Math.cos(a * 4 + t * 6) * 3.5 : Math.sin(a * 3 - t * 5) * 1.8) * vScale + boilRipple;
+
+            const ryTop = 56 * (1 - m * 0.56) * vScale;
+            const ryBot = 46 * (1 - m * 0.52) * vScale;
+            const ry = (ryTop + ryBot) * 0.5 - (ryTop - ryBot) * 0.5 * sa;
+
+            const px = cx + ca * (rxBase + puddleWave);
+            let py = cy + sa * ry;
+            if (py > floorY) {
+              py = floorY + (py - floorY) * (1 - m * 0.86);
+            }
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+        }
+
+        ctx.save();
+        ctx.globalAlpha = Math.min(1, evapRemain * 1.5);
+
+        if (heat > 0.2) {
+          traceBoilingMochiPath();
+          ctx.fillStyle = `rgba(239, 68, 68, ${0.22 * heat})`;
+          ctx.fill();
+        }
+
+        traceBoilingMochiPath();
+        ctx.strokeStyle = haloCol;
+        ctx.lineWidth = 14 * Math.max(0.45, vScale);
+        ctx.shadowColor = mainCol;
+        ctx.shadowBlur = 16;
+        ctx.stroke();
+
+        traceBoilingMochiPath();
+        ctx.strokeStyle = mainCol;
+        ctx.lineWidth = 9.5 * Math.max(0.45, vScale);
+        ctx.shadowBlur = 6;
+        ctx.stroke();
+
+        traceBoilingMochiPath();
+        ctx.strokeStyle = coreCol;
+        ctx.lineWidth = 2.4 * Math.max(0.45, vScale);
+        ctx.shadowBlur = 0;
+        ctx.stroke();
+
+        if (heat > 0.25 && evapRemain > 0.35) {
+          const blushAlpha = Math.min(1, (heat - 0.25) / 0.45) * evapRemain;
+          ctx.save();
+          ctx.globalAlpha = blushAlpha;
+          const cheekX = 36 + m * 10;
+          const cheekY = cy + 8 - m * 2;
+          ctx.fillStyle = 'rgba(251, 113, 133, 0.65)';
+          ctx.beginPath();
+          ctx.ellipse(cx - cheekX * hScale, cheekY, 13 * hScale, 7 * vScale, 0, 0, Math.PI * 2);
+          ctx.ellipse(cx + cheekX * hScale, cheekY, 13 * hScale, 7 * vScale, 0, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = '#fecdd3';
+          ctx.lineWidth = 1.6;
+          [-1, 1].forEach(dir => {
+            for (let k = -1; k <= 1; k++) {
+              const bx = cx + dir * cheekX * hScale + k * 4.5;
+              ctx.beginPath();
+              ctx.moveTo(bx + 2, cheekY - 3 * vScale);
+              ctx.lineTo(bx - 2, cheekY + 3 * vScale);
+              ctx.stroke();
+            }
+          });
+          ctx.restore();
+        }
+
+        if (heat > 0.35 && boilP < 0.3) {
+          const sweatY = ((el * 2.2) % 1) * 24;
+          ctx.fillStyle = '#bae6fd';
+          ctx.beginPath();
+          ctx.arc(cx + (48 + m * 14) * hScale, cy - 22 * vScale + sweatY, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+
+        if (evapRemain > 0.28) {
+          ctx.fillStyle = '#ffffff';
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineCap = 'round';
+
+          const eyeH = Math.max(4, (23 - m * 10) * vScale * state.blink);
+          const eyeW = (13 + m * 2.5) * Math.max(0.6, hScale);
+
+          ctx.save();
+          ctx.translate(cx - (23 + m * 5) * hScale, cy - 2 * vScale);
+          ctx.rotate(-0.24 * m);
+          fillPill(0, 0, eyeW, eyeH);
+          ctx.restore();
+
+          ctx.save();
+          ctx.translate(cx + (23 + m * 6) * hScale, cy + (-2 + m * 5) * vScale);
+          ctx.rotate(0.28 * m);
+          fillPill(0, 0, eyeW, eyeH);
+          ctx.restore();
+
+          if (heat > 0.4) {
+            ctx.lineWidth = 3.8 * Math.max(0.5, vScale);
+            const my = cy + (15 + m * 3) * vScale;
+            const mw = 16 * hScale;
+            ctx.beginPath();
+            ctx.moveTo(cx - mw, my - 1);
+            ctx.quadraticCurveTo(cx - mw * 0.5, my + 5 * vScale, cx, my + 1);
+            ctx.quadraticCurveTo(cx + mw * 0.5, my - 4 * vScale, cx + mw, my + 2);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+
+      if (el > 2.35 && evapRemain > 0.08) {
+        const bInt = Math.min(1, (el - 2.35) / 0.35);
+        const puddleTopY = cy - 22 * evapRemain;
+        const puddleSpan = 74 * (0.3 + 0.7 * evapRemain);
+
+        ctx.save();
+        for (let b = 0; b < 7; b++) {
+          const bp = ((el * 3.6) + b * 0.29) % 1;
+          const bx = 120 + Math.sin(b * 2.1 + Math.floor(el * 3.6 + b * 0.29)) * puddleSpan;
+          const by = puddleTopY + Math.cos(b * 1.7) * 6 * evapRemain - bp * 10;
+          if (bp < 0.80) {
+            const br = (2.2 + (bp / 0.80) * 6.5) * bInt * Math.max(0.45, evapRemain);
+            ctx.fillStyle = 'rgba(254, 202, 202, 0.35)';
+            ctx.strokeStyle = '#fca5a5';
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            ctx.arc(bx, by, br, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+          } else {
+            const popR = 8 * bInt;
+            ctx.strokeStyle = 'rgba(254, 226, 226, 0.75)';
+            ctx.lineWidth = 1.4;
+            for (let k = 0; k < 4; k++) {
+              const ka = k * Math.PI * 0.5 + 0.4;
+              ctx.beginPath();
+              ctx.moveTo(bx + Math.cos(ka) * popR * 0.6, by + Math.sin(ka) * popR * 0.6);
+              ctx.lineTo(bx + Math.cos(ka) * popR * 1.2, by + Math.sin(ka) * popR * 1.2);
+              ctx.stroke();
+            }
+          }
+        }
+        ctx.restore();
+      }
+
+      if (el > 1.0) {
+        const steamIntensity = el < 2.5 ? (el - 1.0) / 1.5 * 0.45 : 1.0;
+        const count = el > 2.5 ? 8 : 3;
+        ctx.save();
+        for (let s = 0; s < count; s++) {
+          const sp = ((el * 0.78) + s * 0.19) % 1;
+          const startY = el > 2.5 ? 172 : 95;
+          const sy = startY - sp * 128;
+          const sx = 120 + Math.sin(s * 2.4) * 44 + Math.sin(sp * 7 + s) * 10;
+          const alpha = Math.sin(sp * Math.PI) * 0.72 * steamIntensity;
+
+          if (alpha > 0.03) {
+            ctx.globalAlpha = alpha;
+            if (el > 2.4) {
+              const pr = 7 + sp * 13;
+              ctx.fillStyle = '#f1f5f9';
+              ctx.beginPath();
+              ctx.arc(sx, sy, pr, 0, Math.PI * 2);
+              ctx.arc(sx - pr * 0.65, sy + 3, pr * 0.72, 0, Math.PI * 2);
+              ctx.arc(sx + pr * 0.65, sy + 3, pr * 0.72, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.strokeStyle = el > 2.4 ? '#e2e8f0' : '#fca5a5';
+            ctx.lineWidth = 2.4;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(sx, sy + 10);
+            ctx.quadraticCurveTo(sx - 5, sy + 4, sx, sy - 2);
+            ctx.quadraticCurveTo(sx + 5, sy - 8, sx, sy - 14);
+            ctx.stroke();
+          }
+        }
+        ctx.restore();
+      }
+    }
+
+    function drawSnowflake(sx, sy, r, alpha) {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = '#e0f2fe';
+      ctx.lineWidth = 1.6;
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 3; i++) {
+        const a = (i * Math.PI) / 3;
+        ctx.beginPath();
+        ctx.moveTo(sx - Math.cos(a) * r, sy - Math.sin(a) * r);
+        ctx.lineTo(sx + Math.cos(a) * r, sy + Math.sin(a) * r);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawFreezeScene(el, t) {
+      if (el < 3.55) {
+        for (let i = 0; i < 7; i++) {
+          const sp = ((el * 0.55) + i * 0.17) % 1;
+          const sx = 30 + ((i * 31) % 180) + Math.sin(sp * 6 + i) * 8;
+          const sy = 16 + sp * 195;
+          drawSnowflake(sx, sy, 4.5, Math.sin(sp * Math.PI) * 0.85);
+        }
+      }
+
+      if (el < 3.55) {
+        const isFrozenSolid = el >= 1.25;
+        if (isFrozenSolid && !state.iceSoundPlayed) {
+          state.iceSoundPlayed = true;
+          playChirp('ice_lock');
+        }
+
+        const chill = Math.min(1, el / 1.0);
+        const crackPhase = el > 2.65 ? (el - 2.65) / 0.90 : 0;
+        const blockRattle = crackPhase > 0 ? Math.sin(t * 58) * (crackPhase * 4.5) : 0;
+        const petShiver = isFrozenSolid ? 0 : Math.sin(t * 62) * (1.5 + chill * 3.5);
+        const cx = 120 + petShiver + blockRattle;
+        const cy = 126;
+
+        ctx.save();
+        mochiHeadPath(cx, cy, 64, 56, 46);
+        ctx.fillStyle = `rgba(14, 116, 144, ${0.22 * chill})`;
+        ctx.fill();
+        ctx.strokeStyle = chill > 0.5 ? '#67e8f9' : '#38bdf8';
+        ctx.lineWidth = 10;
+        ctx.shadowColor = '#22d3ee';
+        ctx.shadowBlur = 12;
+        ctx.stroke();
+        mochiHeadPath(cx, cy, 64, 56, 46);
+        ctx.strokeStyle = '#ecfeff';
+        ctx.lineWidth = 2.8;
+        ctx.shadowBlur = 0;
+        ctx.stroke();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 4.5;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(cx - 31, cy - 11); ctx.lineTo(cx - 17, cy - 3); ctx.lineTo(cx - 31, cy + 5);
+        ctx.moveTo(cx + 31, cy - 11); ctx.lineTo(cx + 17, cy - 3); ctx.lineTo(cx + 31, cy + 5);
+        ctx.stroke();
+
+        if (chill > 0.35) {
+          const icicleLen = Math.min(1, (chill - 0.35) / 0.5) * 13;
+          ctx.fillStyle = '#a5f3fc';
+          ctx.beginPath();
+          ctx.moveTo(cx + 3, cy + 3);
+          ctx.lineTo(cx + 9, cy + 3);
+          ctx.lineTo(cx + 6, cy + 3 + icicleLen);
+          ctx.closePath();
+          ctx.fill();
+        }
+
+        const jawChatter = isFrozenSolid ? 0 : Math.sin(t * 55) * 1.5;
+        const my = cy + 21 + jawChatter;
+        ctx.strokeStyle = '#ecfeff';
+        ctx.lineWidth = 2.8;
+        ctx.beginPath();
+        ctx.moveTo(cx - 18, my);
+        for (let k = -2; k <= 2; k++) {
+          ctx.lineTo(cx + k * 7, my + (k % 2 === 0 ? -3.5 : 3.5));
+        }
+        ctx.lineTo(cx + 18, my);
+        ctx.stroke();
+        ctx.restore();
+
+        if (el > 1.15) {
+          const iceGrow = Math.min(1, (el - 1.15) / 0.22);
+          const iceW = 168;
+          const iceH = 148 * iceGrow;
+          const ix = 120 - iceW / 2 + blockRattle;
+          const iy = 198 - iceH;
+
+          ctx.save();
+          const iceGrad = ctx.createLinearGradient(ix, iy, ix + iceW, iy + iceH);
+          iceGrad.addColorStop(0, 'rgba(207, 250, 254, 0.42)');
+          iceGrad.addColorStop(0.5, 'rgba(56, 189, 248, 0.28)');
+          iceGrad.addColorStop(1, 'rgba(14, 116, 144, 0.38)');
+          ctx.fillStyle = iceGrad;
+          ctx.strokeStyle = '#cffafe';
+          ctx.lineWidth = 3.2;
+          ctx.shadowColor = '#67e8f9';
+          ctx.shadowBlur = 14;
+          ctx.beginPath();
+          ctx.roundRect(ix, iy, iceW, iceH, 14);
+          ctx.fill();
+          ctx.stroke();
+
+          ctx.shadowBlur = 0;
+          ctx.save();
+          ctx.beginPath();
+          ctx.roundRect(ix, iy, iceW, iceH, 14);
+          ctx.clip();
+          ctx.strokeStyle = 'rgba(255, 255, 255, 0.48)';
+          ctx.lineWidth = 10;
+          ctx.beginPath();
+          ctx.moveTo(ix + 18, iy + iceH);
+          ctx.lineTo(ix + 88, iy - 10);
+          ctx.stroke();
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(ix + 42, iy + iceH);
+          ctx.lineTo(ix + 112, iy - 10);
+          ctx.stroke();
+          ctx.restore();
+
+          if (iceGrow > 0.85) {
+            ctx.fillStyle = '#e0f2fe';
+            const spikes = [[18, 18], [34, 12], [128, 15], [146, 22], [156, 12]];
+            spikes.forEach(([ox, len]) => {
+              ctx.beginPath();
+              ctx.moveTo(ix + ox - 6, iy + 2);
+              ctx.lineTo(ix + ox + 6, iy + 2);
+              ctx.lineTo(ix + ox, iy + 2 + len);
+              ctx.closePath();
+              ctx.fill();
+            });
+          }
+
+          if (crackPhase > 0) {
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2.4;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(120 + blockRattle, 124);
+            ctx.lineTo(102 + blockRattle, 104);
+            ctx.lineTo(84 + blockRattle, 98);
+            if (crackPhase > 0.35) {
+              ctx.moveTo(120 + blockRattle, 124);
+              ctx.lineTo(144 + blockRattle, 110);
+              ctx.lineTo(164 + blockRattle, 88);
+              ctx.moveTo(120 + blockRattle, 124);
+              ctx.lineTo(132 + blockRattle, 152);
+              ctx.lineTo(152 + blockRattle, 174);
+            }
+            if (crackPhase > 0.65) {
+              ctx.moveTo(102 + blockRattle, 104);
+              ctx.lineTo(92 + blockRattle, 148);
+            }
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+      } else {
+        if (!state.shatterSoundPlayed) {
+          state.shatterSoundPlayed = true;
+          playChirp('ice_shatter');
+        }
+        const post = (el - 3.55) / 1.45;
+        const shakeFree = post < 0.45 ? Math.sin(post * Math.PI * 10) * 6 * (1 - post / 0.45) : 0;
+
+        strokeNeonMochiHead(120 + shakeFree, 122, 64, 56, 46, 1.0);
+        ctx.fillStyle = '#ffffff';
+        fillPill(96 + shakeFree, 120, 13, 24);
+        fillPill(144 + shakeFree, 120, 13, 24);
+
+        if (post < 0.65) {
+          const sp = post / 0.65;
+          ctx.save();
+          ctx.globalAlpha = 1 - sp;
+          for (let i = 0; i < 12; i++) {
+            const ang = (i / 12) * Math.PI * 2 + 0.2;
+            const dist = 28 + sp * 95;
+            const sx = 120 + Math.cos(ang) * dist;
+            const sy = 124 + Math.sin(ang) * dist + sp * sp * 28;
+            drawTriangleCrumb(sx, sy, 10 * (1 - sp * 0.4), ang + sp * 5, i % 2 === 0 ? '#cffafe' : '#38bdf8');
+          }
+          ctx.restore();
+        }
+      }
+    }
+
     function drawMainPetFace(t) {
       const holdPress = state.holding ? Math.min(1, state.holdDuration / HOLD_DIZZY_SEC) : 0;
       const shakeX = holdPress > 0.15 ? Math.sin(t * 45) * (holdPress * 4) : 0;
@@ -1461,7 +1963,7 @@
           } else if (state.idleCountdown <= 0) {
             const nextStory = IDLE_STORIES[storyIndex % IDLE_STORIES.length];
             storyIndex++;
-            const dur = nextStory === 'fortune' ? 4.3 : 3.9;
+            const dur = (nextStory === 'melt' || nextStory === 'freeze') ? 5.0 : (nextStory === 'fortune' ? 4.3 : 3.9);
             setMode(nextStory, dur, true, false);
           }
         } else {
@@ -1513,6 +2015,8 @@
       } else if (state.mode === 'fall_asleep') drawFallAsleepScene(state.animElapsed);
       else if (state.mode === 'wakeup') drawWakeUpScene(state.animElapsed);
       else if (state.mode === 'boot') drawBootHiScene(state.animElapsed);
+      else if (state.mode === 'melt') drawMeltScene(state.animElapsed, t);
+      else if (state.mode === 'freeze') drawFreezeScene(state.animElapsed, t);
       else if (state.mode === 'dizzy') drawDizzyScene(t);
       else if (state.mode === 'baseball') drawBaseballScene(state.animElapsed, t);
       else if (state.mode === 'fortune') drawFortuneScene(state.animElapsed, t);

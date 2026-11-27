@@ -24,16 +24,20 @@ Mỗi lần chạm nhanh vào cảm biến trên đỉnh hộp (hoặc nhấn ph
 - **😉 Nháy mắt (`Wink`):** Nháy một bên mắt phải thành dấu `<` tinh nghịch (`o <`).
 - **😠 Cau mày / Dỗi (`Angry`):** Hai mắt xếch chéo dữ dằn (`\ /`).
 - **😊 Cười tươi (`Happy`):** Hai mắt thu nhỏ phía trên cùng khuôn miệng cười rộng rạng rỡ.
+- **🥶 Lạnh cóng & Đóng tảng băng (`Shiver -> Ice Cube -> Shatter`):** Tuyết rơi lất phất, Pet lạnh run cầm cập hai hàm răng va lập cập kèm giọt nước mũi đóng băng, sau đó bị **đóng cứng đơ bên trong tảng băng 3D trong suốt** treo nhũ băng nhọn — Pet gồng nứt tảng băng rồi **phá vỡ tung tóe** thành 12 mảnh băng văng tứ phía!
+- **🫠 Tan chảy & Bốc hơi (`Overheat -> Melt -> Boil & Evaporate`):** Pet nóng bừng đỏ rực cả mặt (hai má ửng hồng `///`, đổ mồ hôi), chảy nhũn thành vũng nước đỏ dưới sàn, sau đó **sôi sùng sục** nổi bong bóng rồi **bốc hơi nghi ngút** thành mây khói trắng cho tới khi cạn sạch, rồi hồi sinh mát lạnh trở lại!
 
 ### 3. 😵 Nhấn giữ lâu bị choáng (`≥ 0.5s` — `Dizzy Mode`)
 - Khi đặt ngón tay đè giữ lên đỉnh hộp: Đầu Pet bị ép dẹp xuống, nheo chặt hai mắt `> <` rung bần bật.
 - Sau `0.5 giây`: Pet rơi vào trạng thái **bị choáng** — đầu nghiêng ngả lắc lư, hai tròng mắt xoay xoáy ốc `@ @` ngược chiều nhau kèm **3 ngôi sao vàng** bay quay vòng quanh đỉnh đầu.
 
 ### 4. 🎬 Tự động chạy hiệu ứng mỗi `15 giây` không chạm (`Idle Stories`)
-Khi để yên trên bàn làm việc, cứ mỗi **15 giây** Pet sẽ tự động biểu diễn luân phiên 3 hoạt ảnh:
+Khi để yên trên bàn làm việc, cứ mỗi **15 giây** Pet sẽ tự động biểu diễn luân phiên **5 hoạt ảnh**:
 1. **⚾ Đánh bóng chày (`Baseball Home Run`):** Pet đội mũ lưỡi trai vàng, cầm gậy bóng chày vàng chờ bóng bay tới rồi vung gậy tạo vệt sáng vàng quét ngang, đánh văng quả bóng bay vút lên trời lóe sao Home Run.
-2. **🥠 Bánh quy may mắn (`Luck is Yours`):** Chiếc bánh quy vàng rung lắc mạnh rồi tách làm đôi mở ra dải băng rôn **`Luck is Yours`**, sau đó Pet nhảy tưng tưng chạm nảy ngay trên dòng chữ **`Luck is Yours`**.
-3. **🎵 Ngân nga nốt nhạc (`Humming ♫`):** Pet nhắm mắt cười `⌒ ⌒` đung đưa qua lại cùng đám mây bọt xốp trắng-xanh và các nốt nhạc đôi `♫` bay bổng.
+2. **🥠 Bánh quy may mắn (`3D Lucky Scroll`):** Chiếc bánh quy vàng rung lắc mạnh rồi tách ra thành **hai đầu cuộn vàng khối 3D**, trải dải lụa **trắng đổ bóng xanh uốn lượn chữ S** với bé Pet nháy mắt `• <` ló lên ở góc phải, các mảnh pháo giấy tam giác vàng `▲` và **10 câu chúc tự động uốn cong theo sóng** (*`Luck is Yours`*, *`Stay Happy :)`*, *`Good Vibes Only`*, *`Big Win Ahead!`*...), sau đó Pet nhảy tưng tưng ngay trên dải lụa.
+3. **🥶 Tuyết rơi lạnh cóng → Đóng tảng băng & Phá băng (`Freeze & Shatter`).**
+4. **🫠 Nóng đỏ mặt → Tan chảy & Sôi bốc hơi (`Melt & Boil`).**
+5. **🎵 Ngân nga nốt nhạc (`Humming ♫`):** Pet nhắm mắt cười `⌒ ⌒` đung đưa qua lại cùng đám mây bọt xốp trắng-xanh và các nốt nhạc đôi `♫` bay bổng.
 
 ### 5. 😴 Để lâu tự ngủ & Đánh thức nổ bong bóng (`Auto-Sleep & Bubble-Pop Wakeup`)
 - **Tự ngủ tiết kiệm điện (`60 giây` không tương tác):** Khung đầu xanh mờ dần, hai mắt nhắm cong xuống `︶ ︶` thổi phồng nhẹ quả bong bóng ngủ rồi **tắt đen hoàn toàn màn hình** (hỗ trợ tắt cả chân đèn nền `BLK`).

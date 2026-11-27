@@ -99,6 +99,8 @@ enum PetMode {
   MODE_WINK,         // Nháy mắt (o <)
   MODE_ANGRY,        // Cau mày (\ /)
   MODE_HAPPY,        // Cười tươi (:D)
+  MODE_MELT,         // Nóng đỏ mặt -> Tan chảy -> Sôi bốc hơi (🫠)
+  MODE_FREEZE,       // Lạnh run cầm cập -> Đóng tảng băng -> Phá băng vỡ tung (🥶)
   MODE_DIZZY,        // Choáng váng khi giữ lâu (@ @ + sao quay quanh đầu)
   MODE_BASEBALL,     // Hoạt ảnh 15s #1: Đội mũ vàng đánh bóng chày Home Run
   MODE_FORTUNE,      // Hoạt ảnh 15s #2: Nhảy trên dòng chữ "Luck is Yours"
@@ -110,12 +112,12 @@ enum PetMode {
 
 const PetMode TAP_SEQUENCE[] = {
   MODE_WINK, MODE_ANGRY, MODE_HAPPY, MODE_IDLE,
-  MODE_ANGRY, MODE_WINK, MODE_HAPPY
+  MODE_FREEZE, MODE_MELT, MODE_WINK, MODE_HAPPY
 };
 const int TAP_SEQ_LEN = sizeof(TAP_SEQUENCE) / sizeof(TAP_SEQUENCE[0]);
 
 const PetMode IDLE_STORIES[] = {
-  MODE_BASEBALL, MODE_FORTUNE, MODE_HUMMING
+  MODE_BASEBALL, MODE_FORTUNE, MODE_FREEZE, MODE_MELT, MODE_HUMMING
 };
 const int IDLE_STORY_LEN = sizeof(IDLE_STORIES) / sizeof(IDLE_STORIES[0]);
 
@@ -165,6 +167,9 @@ struct PetState {
   bool    dizzyTriggeredInHold = false;
   bool    batHitPlayed         = false;
   bool    popPlayed            = false;
+  bool    boilPlayed           = false;
+  bool    iceLockPlayed        = false;
+  bool    shatterPlayed        = false;
   const char* currentWish      = "Luck is Yours";
 } pet;
 
@@ -228,6 +233,18 @@ void playChirp(PetMode m) {
       tone(PIN_BUZZER, 380, 45); delay(45);
       tone(PIN_BUZZER, 520, 55);
       break;
+    case MODE_MELT:
+      tone(PIN_BUZZER, 500, 45); delay(45);
+      tone(PIN_BUZZER, 920, 55); delay(55);
+      tone(PIN_BUZZER, 640, 55); delay(55);
+      tone(PIN_BUZZER, 320, 80);
+      break;
+    case MODE_FREEZE:
+      tone(PIN_BUZZER, 920, 35);  delay(45);
+      tone(PIN_BUZZER, 1180, 35); delay(45);
+      tone(PIN_BUZZER, 920, 35);  delay(45);
+      tone(PIN_BUZZER, 1180, 35);
+      break;
     case MODE_WINK:
       tone(PIN_BUZZER, 880, 45); delay(45);
       tone(PIN_BUZZER, 1480, 55);
@@ -264,6 +281,9 @@ void setPetMode(PetMode newMode, float durationSec = 3.0f, bool sound = true, bo
   pet.bounce        = 1.0f;
   pet.batHitPlayed  = false;
   pet.popPlayed     = false;
+  pet.boilPlayed    = false;
+  pet.iceLockPlayed = false;
+  pet.shatterPlayed = false;
   if (sound) playChirp(newMode);
 }
 
@@ -885,6 +905,344 @@ void drawWakeUpScene(float el) {
   }
 }
 
+// ======================= 6.5 NÓNG ĐỎ MẶT -> TAN CHẢY -> SÔI SÙNG SỤC & BỐC HƠI =======================
+void drawMeltScene(float el, float t) {
+  // Pha 4 (4.35s -> 5.00s): Bốc hơi hết -> Pet xanh mát lạnh bật nảy xuất hiện trở lại!
+  if (el >= 4.35f) {
+    float rp = (el - 4.35f) / 0.55f;
+    if (rp > 1.0f) rp = 1.0f;
+    float p1 = rp - 1.0f;
+    float easeBack = 1.0f + 2.2f * p1 * p1 * p1 + 1.2f * p1 * p1;
+    float sc = 0.25f + 0.75f * easeBack;
+    if (sc < 0.1f) sc = 0.1f;
+
+    drawMochiHead(120.0f, 122.0f, 64.0f, 56.0f, 46.0f, sc);
+    drawPillEye(120 - (int)(24.0f * sc), 120, (int)(13.0f * sc), (int)(24.0f * sc), colWhite);
+    drawPillEye(120 + (int)(24.0f * sc), 120, (int)(13.0f * sc), (int)(24.0f * sc), colWhite);
+    return;
+  }
+
+  // Pha 1: Nóng lên đỏ mặt (0.0 -> 1.05s)
+  float heat = el / 1.05f;
+  if (heat > 1.0f) heat = 1.0f;
+
+  // Pha 2: Tan chảy sụp thành vũng (1.20 -> 2.50s)
+  float m = 0.0f;
+  if (el > 1.20f) {
+    float mp = (el - 1.20f) / 1.30f;
+    if (mp > 1.0f) mp = 1.0f;
+    m = mp * mp * (3.0f - 2.0f * mp);
+  }
+
+  // Pha 3: Sôi sùng sục như nước sôi & bốc hơi cạn dần (2.60 -> 4.35s)
+  float boilP = 0.0f;
+  if (el > 2.60f) {
+    if (!pet.boilPlayed) {
+      pet.boilPlayed = true;
+      if (ENABLE_SOUND && PIN_BUZZER >= 0) {
+        tone(PIN_BUZZER, 540, 30); delay(30);
+        tone(PIN_BUZZER, 820, 30); delay(30);
+        tone(PIN_BUZZER, 480, 30); delay(30);
+        tone(PIN_BUZZER, 960, 40);
+      }
+    }
+    boilP = (el - 2.60f) / 1.70f;
+    if (boilP > 1.0f) boilP = 1.0f;
+  }
+
+  float evapRemain = 1.0f - powf(boilP, 1.35f);
+  float floorY     = 186.0f;
+
+  // Pha màu trực tiếp từ Xanh Mochi -> Đỏ rực nóng bừng
+  uint8_t rMain = (uint8_t)(36.0f  + heat * 219.0f);
+  uint8_t gMain = (uint8_t)(155.0f - heat * 90.0f + boilP * 35.0f);
+  uint8_t bMain = (uint8_t)(255.0f - heat * 200.0f);
+  uint16_t colHotMain = tft.color565(rMain, gMain, bMain);
+
+  uint8_t rHalo = (uint8_t)(14.0f + heat * 125.0f);
+  uint8_t gHalo = (uint8_t)(58.0f - heat * 42.0f);
+  uint8_t bHalo = (uint8_t)(138.0f - heat * 115.0f);
+  uint16_t colHotHalo = tft.color565(rHalo, gHalo, bHalo);
+  uint16_t colHotCore = (heat > 0.5f) ? tft.color565(254, 202, 202) : colIceBlue;
+  uint16_t colBlush   = tft.color565(244, 63, 94);
+
+  float tremble = (el < 1.35f) ? sinf(t * 48.0f) * 2.5f * heat
+                               : sinf(t * 36.0f) * 2.2f * ((boilP > 0.0f) ? 1.0f : 0.3f);
+  float cx = 120.0f + tremble;
+  float cy = 122.0f + m * 46.0f + (1.0f - evapRemain) * 16.0f;
+
+  if (evapRemain > 0.05f) {
+    float hScale = 0.25f + 0.75f * evapRemain;
+    float vScale = evapRemain;
+    const int STEPS = 44;
+    float px[STEPS + 1];
+    float py[STEPS + 1];
+
+    for (int i = 0; i <= STEPS; i++) {
+      float a  = (i * 2.0f * 3.1415926f) / STEPS;
+      float sa = sinf(a);
+      float ca = cosf(a);
+
+      float posSa      = (sa > 0.0f) ? sa : 0.0f;
+      float rxBase     = 64.0f * (1.0f + m * 0.42f) * hScale * (1.0f + (0.045f + m * 0.22f) * posSa);
+      float boilRipple = (boilP > 0.0f) ? sinf(a * 7.0f + t * 26.0f) * 3.5f * vScale : 0.0f;
+      float puddleWave = m * ((sa > -0.1f) ? cosf(a * 4.0f + t * 6.0f) * 3.5f : sinf(a * 3.0f - t * 5.0f) * 1.8f) * vScale + boilRipple;
+
+      float ryTop = 56.0f * (1.0f - m * 0.56f) * vScale;
+      float ryBot = 46.0f * (1.0f - m * 0.52f) * vScale;
+      float ry    = (ryTop + ryBot) * 0.5f - (ryTop - ryBot) * 0.5f * sa;
+
+      px[i] = cx + ca * (rxBase + puddleWave);
+      float yVal = cy + sa * ry;
+      if (yVal > floorY) {
+        yVal = floorY + (yVal - floorY) * (1.0f - m * 0.86f);
+      }
+      py[i] = yVal;
+    }
+
+    float thickScale = (vScale > 0.45f) ? vScale : 0.45f;
+    for (int i = 0; i < STEPS; i++) canvas.drawWideLine(px[i], py[i], px[i + 1], py[i + 1], 13.0f * thickScale, colHotHalo);
+    for (int i = 0; i < STEPS; i++) canvas.drawWideLine(px[i], py[i], px[i + 1], py[i + 1], 9.0f  * thickScale, colHotMain);
+    for (int i = 0; i < STEPS; i++) canvas.drawWideLine(px[i], py[i], px[i + 1], py[i + 1], 2.4f  * thickScale, colHotCore);
+
+    // Hai má ửng đỏ hồng + gạch chéo /// xấu hổ / nóng bừng
+    if (heat > 0.25f && evapRemain > 0.35f) {
+      float cheekX = (36.0f + m * 10.0f) * hScale;
+      int   cheekY = (int)(cy + 8.0f - m * 2.0f);
+      int   crx    = (int)(12.0f * hScale);
+      int   cry    = (int)(6.5f * vScale);
+      if (cry < 2) cry = 2;
+      canvas.fillEllipse((int)(cx - cheekX), cheekY, crx, cry, colBlush);
+      canvas.fillEllipse((int)(cx + cheekX), cheekY, crx, cry, colBlush);
+
+      for (int k = -1; k <= 1; k++) {
+        int lx = (int)(cx - cheekX) + k * 4;
+        int rx = (int)(cx + cheekX) + k * 4;
+        canvas.drawLine(lx + 2, cheekY - 2, lx - 2, cheekY + 2, colHotCore);
+        canvas.drawLine(rx + 2, cheekY - 2, rx - 2, cheekY + 2, colHotCore);
+      }
+    }
+
+    // Giọt mồ hôi lăn xuống khi mới nóng đỏ mặt
+    if (heat > 0.35f && boilP < 0.3f) {
+      float sweatY = fmodf(el * 2.2f, 1.0f) * 24.0f;
+      canvas.fillSmoothCircle((int)(cx + (48.0f + m * 14.0f) * hScale), (int)(cy - 22.0f * vScale + sweatY), 3, colIceBlue);
+    }
+
+    // Mắt lệch & miệng gợn sóng ﹏ (thu nhỏ dần khi bốc hơi)
+    if (evapRemain > 0.28f) {
+      float eyeLen = (19.0f - m * 9.0f) * vScale * pet.blink;
+      if (eyeLen < 3.0f) eyeLen = 3.0f;
+      float halfL = eyeLen * 0.5f;
+      float eyeW  = (12.5f + m * 2.0f) * ((hScale > 0.6f) ? hScale : 0.6f);
+
+      float lx = cx - (23.0f + m * 5.0f) * hScale;
+      float ly = cy - 2.0f * vScale;
+      float la = -0.24f * m;
+      canvas.drawWideLine(lx + sinf(la) * halfL, ly - cosf(la) * halfL,
+                          lx - sinf(la) * halfL, ly + cosf(la) * halfL, eyeW, colWhite);
+
+      float rx = cx + (23.0f + m * 6.0f) * hScale;
+      float ry = cy + (-2.0f + m * 5.0f) * vScale;
+      float ra = 0.28f * m;
+      canvas.drawWideLine(rx + sinf(ra) * halfL, ry - cosf(ra) * halfL,
+                          rx - sinf(ra) * halfL, ry + cosf(ra) * halfL, eyeW, colWhite);
+
+      if (heat > 0.4f) {
+        float my = cy + (15.0f + m * 3.0f) * vScale;
+        float mw = 16.0f * hScale;
+        canvas.drawWideLine(cx - mw,        my - 1.0f, cx - mw * 0.4f, my + 4.0f * vScale, 3.4f * thickScale, colWhite);
+        canvas.drawWideLine(cx - mw * 0.4f, my + 4.0f * vScale, cx + mw * 0.4f, my - 2.0f * vScale, 3.4f * thickScale, colWhite);
+        canvas.drawWideLine(cx + mw * 0.4f, my - 2.0f * vScale, cx + mw,        my + 2.0f * vScale, 3.4f * thickScale, colWhite);
+      }
+    }
+  }
+
+  // Bong bóng nước sôi sùng sục o O nổ lách tách trên mặt vũng!
+  if (el > 2.35f && evapRemain > 0.08f) {
+    float puddleTopY = cy - 22.0f * evapRemain;
+    float puddleSpan = 72.0f * (0.3f + 0.7f * evapRemain);
+    for (int b = 0; b < 7; b++) {
+      float raw = el * 3.6f + b * 0.29f;
+      float bp  = fmodf(raw, 1.0f);
+      int   bx  = 120 + (int)(sinf(b * 2.1f + floorf(raw)) * puddleSpan);
+      int   by  = (int)(puddleTopY + cosf(b * 1.7f) * 5.0f * evapRemain - bp * 10.0f);
+      if (bp < 0.80f) {
+        int br = (int)((2.0f + (bp / 0.80f) * 6.0f) * ((evapRemain > 0.45f) ? evapRemain : 0.45f));
+        canvas.drawCircle(bx, by, br, colHotCore);
+      } else {
+        canvas.drawLine(bx - 6, by - 6, bx - 3, by - 3, colHotCore);
+        canvas.drawLine(bx + 6, by - 6, bx + 3, by - 3, colHotCore);
+        canvas.drawLine(bx - 6, by + 6, bx - 3, by + 3, colHotCore);
+        canvas.drawLine(bx + 6, by + 6, bx + 3, by + 3, colHotCore);
+      }
+    }
+  }
+
+  // Khói trắng & hơi nước bốc lên nghi ngút!
+  if (el > 1.0f) {
+    int count = (el > 2.5f) ? 7 : 3;
+    for (int s = 0; s < count; s++) {
+      float sp = fmodf(el * 0.78f + s * 0.19f, 1.0f);
+      float startY = (el > 2.5f) ? 172.0f : 95.0f;
+      int   sy = (int)(startY - sp * 126.0f);
+      int   sx = 120 + (int)(sinf(s * 2.4f) * 44.0f + sinf(sp * 7.0f + s) * 10.0f);
+
+      float fade = sinf(sp * 3.14159f);
+      if (fade > 0.15f) {
+        uint8_t shade = (uint8_t)(210.0f * fade);
+        uint16_t steamCol = (el > 2.4f) ? tft.color565(shade, shade, shade + 15) : tft.color565(shade, shade / 3, shade / 3);
+
+        if (el > 2.4f) {
+          int pr = 6 + (int)(sp * 11.0f);
+          canvas.fillSmoothCircle(sx,          sy,     pr,          steamCol);
+          canvas.fillSmoothCircle(sx - pr / 2, sy + 3, (pr * 7) / 10, steamCol);
+          canvas.fillSmoothCircle(sx + pr / 2, sy + 3, (pr * 7) / 10, steamCol);
+        } else {
+          canvas.drawWideLine(sx, sy + 8, sx - 4, sy + 2, 2.2f, steamCol);
+          canvas.drawWideLine(sx - 4, sy + 2, sx + 4, sy - 5, 2.2f, steamCol);
+          canvas.drawWideLine(sx + 4, sy - 5, sx, sy - 11, 2.2f, steamCol);
+        }
+      }
+    }
+  }
+}
+
+// ======================= 6.6 LẠNH CÓNG -> ĐÓNG TẢNG BĂNG -> PHÁ BĂNG VỠ TUNG (🥶) =======================
+void drawFreezeScene(float el, float t) {
+  uint16_t colFrostBg   = tft.color565(10, 56, 82);
+  uint16_t colFrostCyan = tft.color565(103, 232, 249);
+  uint16_t colFrostRim  = tft.color565(207, 250, 254);
+
+  if (el < 3.55f) {
+    // Tuyết rơi lất phất từ trên xuống
+    for (int i = 0; i < 6; i++) {
+      float sp = fmodf(el * 0.55f + i * 0.17f, 1.0f);
+      int   sx = 30 + ((i * 31) % 180) + (int)(sinf(sp * 6.0f + i) * 8.0f);
+      int   sy = 16 + (int)(sp * 195.0f);
+      canvas.drawLine(sx - 4, sy, sx + 4, sy, colFrostRim);
+      canvas.drawLine(sx, sy - 4, sx, sy + 4, colFrostRim);
+    }
+
+    bool isFrozenSolid = (el >= 1.25f);
+    if (isFrozenSolid && !pet.iceLockPlayed) {
+      pet.iceLockPlayed = true;
+      if (ENABLE_SOUND && PIN_BUZZER >= 0) {
+        tone(PIN_BUZZER, 1318, 45); delay(45);
+        tone(PIN_BUZZER, 2093, 75);
+      }
+    }
+
+    float chill       = (el < 1.0f) ? el : 1.0f;
+    float crackPhase  = (el > 2.65f) ? ((el - 2.65f) / 0.90f) : 0.0f;
+    float blockRattle = (crackPhase > 0.0f) ? sinf(t * 58.0f) * (crackPhase * 4.5f) : 0.0f;
+    float petShiver   = isFrozenSolid ? 0.0f : sinf(t * 62.0f) * (1.5f + chill * 3.5f);
+
+    int   iceW    = 168;
+    float iceGrow = (el > 1.15f) ? ((el - 1.15f) / 0.22f) : 0.0f;
+    if (iceGrow > 1.0f) iceGrow = 1.0f;
+    int   iceH = (int)(148.0f * iceGrow);
+    int   ix   = 120 - iceW / 2 + (int)blockRattle;
+    int   iy   = 198 - iceH;
+
+    // 1) Lớp nền băng xanh thẫm vẽ PHÍA SAU Pet để tạo hiệu ứng tảng băng trong suốt!
+    if (iceGrow > 0.05f) {
+      canvas.fillSmoothRoundRect(ix, iy, iceW, iceH, 14, colFrostBg);
+    }
+
+    // 2) Vẽ Pet đang run cầm cập rồi đông cứng bên trong tảng băng
+    float cx = 120.0f + petShiver + blockRattle;
+    float cy = 126.0f;
+    drawMochiHead(cx, cy, 64.0f, 56.0f, 46.0f, 1.0f);
+
+    // Mắt nheo chặt > < vì lạnh cóng
+    canvas.drawWideLine(cx - 31, cy - 11, cx - 17, cy - 3, 4.2f, colWhite);
+    canvas.drawWideLine(cx - 17, cy - 3,  cx - 31, cy + 5, 4.2f, colWhite);
+    canvas.drawWideLine(cx + 31, cy - 11, cx + 17, cy - 3, 4.2f, colWhite);
+    canvas.drawWideLine(cx + 17, cy - 3,  cx + 31, cy + 5, 4.2f, colWhite);
+
+    // Giọt nước mũi đóng thành nhũ băng nhỏ!
+    if (chill > 0.35f) {
+      int icLen = (int)(((chill - 0.35f) / 0.65f) * 13.0f);
+      canvas.fillTriangle((int)cx + 3, (int)cy + 3, (int)cx + 9, (int)cy + 3, (int)cx + 6, (int)cy + 3 + icLen, colFrostRim);
+    }
+
+    // Hàm răng lập cập ziczac MWMW!
+    float jaw = isFrozenSolid ? 0.0f : sinf(t * 55.0f) * 1.5f;
+    float my  = cy + 21.0f + jaw;
+    for (int k = -2; k < 2; k++) {
+      float x0 = cx + k * 8.0f;
+      float y0 = my + ((k % 2 == 0) ? -3.5f : 3.5f);
+      float x1 = cx + (k + 1) * 8.0f;
+      float y1 = my + (((k + 1) % 2 == 0) ? -3.5f : 3.5f);
+      canvas.drawWideLine(x0, y0, x1, y1, 2.6f, colFrostRim);
+    }
+
+    // 3) Vẽ viền tảng băng + vệt lóa kính chéo + nhũ băng + vết nứt ĐÈ LÊN TRƯỚC Pet!
+    if (iceGrow > 0.05f) {
+      canvas.drawRoundRect(ix,     iy,     iceW,     iceH,     14, colFrostRim);
+      canvas.drawRoundRect(ix + 1, iy + 1, iceW - 2, iceH - 2, 13, colFrostCyan);
+
+      if (iceGrow > 0.85f) {
+        // Vệt phản quang mặt băng chéo tạo độ trong suốt
+        canvas.drawWideLine(ix + 22, iy + iceH - 12, ix + 78,  iy + 12, 5.0f, colFrostRim);
+        canvas.drawWideLine(ix + 46, iy + iceH - 12, ix + 102, iy + 12, 2.2f, colWhite);
+
+        // Nhũ băng nhọn rủ xuống từ mép trên tảng băng
+        const int spikes[5][2] = {{18, 17}, {34, 11}, {128, 14}, {146, 20}, {156, 11}};
+        for (int s = 0; s < 5; s++) {
+          int ox = ix + spikes[s][0];
+          canvas.fillTriangle(ox - 5, iy + 2, ox + 5, iy + 2, ox, iy + 2 + spikes[s][1], colFrostRim);
+        }
+      }
+
+      // Vết nứt răng cưa lan ra khi Pet gồng phá băng!
+      if (crackPhase > 0.0f) {
+        int rcx = 120 + (int)blockRattle;
+        canvas.drawWideLine(rcx, 124, rcx - 18, 104, 2.2f, colWhite);
+        canvas.drawWideLine(rcx - 18, 104, rcx - 36, 98, 2.0f, colWhite);
+        if (crackPhase > 0.35f) {
+          canvas.drawWideLine(rcx, 124, rcx + 24, 110, 2.2f, colWhite);
+          canvas.drawWideLine(rcx + 24, 110, rcx + 44, 88, 2.0f, colWhite);
+          canvas.drawWideLine(rcx, 124, rcx + 14, 154, 2.2f, colWhite);
+          canvas.drawWideLine(rcx + 14, 154, rcx + 32, 174, 2.0f, colWhite);
+        }
+        if (crackPhase > 0.65f) {
+          canvas.drawWideLine(rcx - 18, 104, rcx - 28, 148, 2.0f, colWhite);
+        }
+      }
+    }
+  } else {
+    // Pha 3 & 4 (3.55s -> 5.00s): PHÁ BĂNG VỠ TUNG TÓE thành 12 mảnh băng văng tứ phía!
+    if (!pet.shatterPlayed) {
+      pet.shatterPlayed = true;
+      if (ENABLE_SOUND && PIN_BUZZER >= 0) {
+        tone(PIN_BUZZER, 1950, 35); delay(35);
+        tone(PIN_BUZZER, 980,  40); delay(40);
+        tone(PIN_BUZZER, 620,  45);
+      }
+    }
+    float post      = (el - 3.55f) / 1.45f;
+    float shakeFree = (post < 0.45f) ? sinf(post * 3.14159f * 10.0f) * 6.0f * (1.0f - post / 0.45f) : 0.0f;
+
+    drawMochiHead(120.0f + shakeFree, 122.0f, 64.0f, 56.0f, 46.0f, 1.0f);
+    drawPillEye(96  + (int)shakeFree, 120, 13, 24, colWhite);
+    drawPillEye(144 + (int)shakeFree, 120, 13, 24, colWhite);
+
+    if (post < 0.65f) {
+      float sp = post / 0.65f;
+      for (int i = 0; i < 12; i++) {
+        float ang  = (i * 2.0f * 3.14159f) / 12.0f + 0.2f;
+        float dist = 28.0f + sp * 95.0f;
+        float sx   = 120.0f + cosf(ang) * dist;
+        float sy   = 124.0f + sinf(ang) * dist + sp * sp * 28.0f;
+        drawTriangleCrumb(sx, sy, 9.5f * (1.0f - sp * 0.4f), ang + sp * 5.0f,
+                          (i % 2 == 0) ? colFrostRim : colFrostCyan);
+      }
+    }
+  }
+}
+
 // ======================= 7. KHUÔN MẶT CHÍNH =======================
 void drawMainPetFace(float t) {
   float holdPress = pet.holding ? (pet.holdDuration / HOLD_DIZZY_SEC) : 0.0f;
@@ -979,7 +1337,8 @@ void updateTouch(float dt) {
     if (!pet.dizzyTriggeredInHold && held >= 0.025f && held < HOLD_DIZZY_SEC) {
       PetMode next = TAP_SEQUENCE[seqIndex % TAP_SEQ_LEN];
       seqIndex++;
-      setPetMode(next, (next == MODE_IDLE) ? 999.0f : 2.6f, true, true);
+      float dur = (next == MODE_IDLE) ? 999.0f : ((next == MODE_MELT || next == MODE_FREEZE) ? 5.0f : 2.6f);
+      setPetMode(next, dur, true, true);
     } else if (pet.mode == MODE_DIZZY) {
       pet.modeDuration = pet.animElapsed + 2.4f;
     }
@@ -1056,7 +1415,8 @@ void loop() {
       } else if (pet.idleCountdown <= 0.0f) {
         PetMode nextStory = IDLE_STORIES[storyIndex % IDLE_STORY_LEN];
         storyIndex++;
-        float dur = (nextStory == MODE_FORTUNE) ? 4.3f : 3.9f;
+        float dur = (nextStory == MODE_MELT || nextStory == MODE_FREEZE) ? 5.0f
+                  : ((nextStory == MODE_FORTUNE) ? 4.3f : 3.9f);
         setPetMode(nextStory, dur, true, false);
       }
     }
@@ -1117,6 +1477,12 @@ void loop() {
       break;
     case MODE_BOOT:
       drawBootHiScene(pet.animElapsed);
+      break;
+    case MODE_MELT:
+      drawMeltScene(pet.animElapsed, t);
+      break;
+    case MODE_FREEZE:
+      drawFreezeScene(pet.animElapsed, t);
       break;
     case MODE_DIZZY:
       drawDizzyScene(t);
