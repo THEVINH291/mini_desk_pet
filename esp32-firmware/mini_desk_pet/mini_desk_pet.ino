@@ -101,6 +101,8 @@ enum PetMode {
   MODE_HAPPY,        // Cười tươi (:D)
   MODE_MELT,         // Nóng đỏ mặt -> Tan chảy -> Sôi bốc hơi (🫠)
   MODE_FREEZE,       // Lạnh run cầm cập -> Đóng tảng băng -> Phá băng vỡ tung (🥶)
+  MODE_BUBBLE,       // Phồng tròn hóa thành bong bóng ngũ sắc rồi bay bổng lên trời (🫧)
+  MODE_MINDBLOWN,    // Quá tải phồng đầu -> Nổ tung đám mây hình nấm (🤯)
   MODE_DIZZY,        // Choáng váng khi giữ lâu (@ @ + sao quay quanh đầu)
   MODE_BASEBALL,     // Hoạt ảnh 15s #1: Đội mũ vàng đánh bóng chày Home Run
   MODE_FORTUNE,      // Hoạt ảnh 15s #2: Nhảy trên dòng chữ "Luck is Yours"
@@ -111,13 +113,13 @@ enum PetMode {
 };
 
 const PetMode TAP_SEQUENCE[] = {
-  MODE_WINK, MODE_ANGRY, MODE_HAPPY, MODE_IDLE,
-  MODE_FREEZE, MODE_MELT, MODE_WINK, MODE_HAPPY
+  MODE_WINK, MODE_ANGRY, MODE_HAPPY, MODE_MINDBLOWN, MODE_BUBBLE,
+  MODE_IDLE, MODE_FREEZE, MODE_MELT, MODE_WINK, MODE_HAPPY
 };
 const int TAP_SEQ_LEN = sizeof(TAP_SEQUENCE) / sizeof(TAP_SEQUENCE[0]);
 
 const PetMode IDLE_STORIES[] = {
-  MODE_BASEBALL, MODE_FORTUNE, MODE_FREEZE, MODE_MELT, MODE_HUMMING
+  MODE_BASEBALL, MODE_FORTUNE, MODE_FREEZE, MODE_MELT, MODE_BUBBLE, MODE_MINDBLOWN, MODE_HUMMING
 };
 const int IDLE_STORY_LEN = sizeof(IDLE_STORIES) / sizeof(IDLE_STORIES[0]);
 
@@ -170,6 +172,7 @@ struct PetState {
   bool    boilPlayed           = false;
   bool    iceLockPlayed        = false;
   bool    shatterPlayed        = false;
+  bool    boomPlayed           = false;
   const char* currentWish      = "Luck is Yours";
 } pet;
 
@@ -245,6 +248,18 @@ void playChirp(PetMode m) {
       tone(PIN_BUZZER, 920, 35);  delay(45);
       tone(PIN_BUZZER, 1180, 35);
       break;
+    case MODE_BUBBLE:
+      tone(PIN_BUZZER, 523, 45);  delay(45);
+      tone(PIN_BUZZER, 784, 45);  delay(45);
+      tone(PIN_BUZZER, 1046, 55); delay(55);
+      tone(PIN_BUZZER, 1568, 80);
+      break;
+    case MODE_MINDBLOWN:
+      tone(PIN_BUZZER, 320, 45);  delay(45);
+      tone(PIN_BUZZER, 580, 45);  delay(45);
+      tone(PIN_BUZZER, 980, 45);  delay(45);
+      tone(PIN_BUZZER, 1520, 65);
+      break;
     case MODE_WINK:
       tone(PIN_BUZZER, 880, 45); delay(45);
       tone(PIN_BUZZER, 1480, 55);
@@ -284,12 +299,13 @@ void setPetMode(PetMode newMode, float durationSec = 3.0f, bool sound = true, bo
   pet.boilPlayed    = false;
   pet.iceLockPlayed = false;
   pet.shatterPlayed = false;
+  pet.boomPlayed    = false;
   if (sound) playChirp(newMode);
 }
 
 // ======================= CÁC HÀM VẼ CƠ BẢN =======================
 void drawMochiHead(float cx, float cy, float rx, float ryTop, float ryBot,
-                   float scale = 1.0f, float tiltRad = 0.0f, float maxLocalY = 999.0f) {
+                   float scale = 1.0f, float tiltRad = 0.0f, float maxLocalY = 999.0f, float minLocalY = -999.0f) {
   const int STEPS = 36;
   float ct = cosf(tiltRad);
   float st = sinf(tiltRad);
@@ -309,7 +325,7 @@ void drawMochiHead(float cx, float cy, float rx, float ryTop, float ryBot,
     float lx = ca * rHoriz;
     float ly = sa * ry;
 
-    vis[i] = (ly <= maxLocalY);
+    vis[i] = (ly >= minLocalY && ly <= maxLocalY);
     px[i]  = cx + lx * ct - ly * st;
     py[i]  = cy + lx * st + ly * ct;
   }
@@ -1243,6 +1259,252 @@ void drawFreezeScene(float el, float t) {
   }
 }
 
+// ======================= 6.7 HÓA THÀNH BONG BÓNG NGŨ SẮC RỒI BAY LÊN TRỜI (🫧) =======================
+void drawSoapBubbleSphere(int cx, int cy, int rx, int ry) {
+  if (rx < 2 || ry < 2) return;
+  uint16_t colSoapTint = tft.color565(8, 34, 58);
+  uint16_t colSoapPink = tft.color565(244, 114, 182);
+
+  canvas.fillEllipse(cx, cy, rx - 1, ry - 1, colSoapTint);
+  canvas.drawEllipse(cx, cy, rx,     ry,     colIceBlue);
+  if (rx > 5) {
+    canvas.drawEllipse(cx, cy, rx - 1, ry - 1, colSleepBlue);
+  }
+
+  int rAvg = (rx + ry) / 2;
+  if (rAvg > 10) {
+    // Ánh cầu vồng xà phòng hồng & vàng hai bên mép bong bóng
+    canvas.drawArc(cx, cy, rAvg - 2, rAvg - 4, 290, 355, colSoapPink);
+    canvas.drawArc(cx, cy, rAvg - 2, rAvg - 4, 110, 165, colYellowLight);
+    // Vệt phản quang trắng bóng gương góc trên trái + chấm sáng góc dưới phải
+    int hr = (rAvg * 74) / 100;
+    canvas.drawArc(cx, cy, hr, hr - 2, 198, 254, colWhite);
+    int dotR = (rAvg > 30) ? 3 : 1;
+    canvas.fillSmoothCircle(cx + (rx * 48) / 100, cy + (ry * 48) / 100, dotR, colWhite);
+  } else {
+    canvas.drawPixel(cx - rx / 2, cy - ry / 2, colWhite);
+  }
+}
+
+void drawBubbleScene(float el, float t) {
+  // Pha 4 (4.00s -> 4.60s): Pet bật nảy êm ái xuất hiện lại giữa màn hình
+  if (el >= 4.00f) {
+    float rp = (el - 4.00f) / 0.55f;
+    if (rp > 1.0f) rp = 1.0f;
+    float p1 = rp - 1.0f;
+    float easeBack = 1.0f + 2.0f * p1 * p1 * p1 + 1.0f * p1 * p1;
+    float sc = 0.25f + 0.75f * easeBack;
+    if (sc < 0.1f) sc = 0.1f;
+    float yOff = (1.0f - easeBack) * 24.0f;
+
+    drawMochiHead(120.0f, 122.0f + yOff, 64.0f, 56.0f, 46.0f, sc);
+    drawPillEye(120 - (int)(24.0f * sc), 120 + (int)yOff, (int)(13.0f * sc), (int)(24.0f * sc), colWhite);
+    drawPillEye(120 + (int)(24.0f * sc), 120 + (int)yOff, (int)(13.0f * sc), (int)(24.0f * sc), colWhite);
+    return;
+  }
+
+  // Các bong bóng nhỏ ngũ sắc bay lơ lửng theo sau!
+  if (el > 0.45f && el < 3.95f) {
+    for (int i = 0; i < 9; i++) {
+      float bp = fmodf(el * 0.52f + i * 0.14f, 1.0f);
+      int   bx = 34 + ((i * 23) % 172) + (int)(sinf(bp * 6.0f + i * 1.7f) * 12.0f);
+      int   by = 225 - (int)(bp * 245.0f);
+      int   br = 4 + (i % 3) * 4;
+      if (by > -15 && by < 245) {
+        drawSoapBubbleSphere(bx, by, br, br);
+      }
+    }
+  }
+
+  // Pha 1 (0 -> 0.85s): Phồng má hóa thành quả bong bóng tròn xoe
+  // Pha 2-3 (0.85 -> 3.85s): Đung đưa nhẹ nhàng theo gió rồi bay bổng vút lên trời!
+  float morphP = (el < 0.85f) ? (el / 0.85f) : 1.0f;
+  float floatP = (el > 0.85f) ? ((el - 0.85f) / 2.85f) : 0.0f;
+  float liftY  = (floatP > 0.0f) ? (powf(floatP, 1.45f) * 215.0f) : (sinf(morphP * 3.14159f) * -4.0f);
+  float swayK  = (floatP * 2.2f < 1.0f) ? (floatP * 2.2f) : 1.0f;
+  float swayX  = (el > 0.70f) ? (sinf((el - 0.70f) * 4.2f) * 20.0f * swayK) : 0.0f;
+
+  float cx = 120.0f + swayX;
+  float cy = 124.0f - liftY;
+  float wobble = sinf(t * 7.5f) * 2.8f * morphP;
+  int   rx = (int)(64.0f * (1.0f - morphP) + 56.0f * morphP + wobble);
+  int   ry = (int)(51.0f * (1.0f - morphP) + 56.0f * morphP - wobble);
+
+  if (cy > -68.0f) {
+    if (morphP < 0.55f) {
+      drawMochiHead(cx, cy, 64.0f, 56.0f, 46.0f, 1.0f);
+    } else {
+      drawSoapBubbleSphere((int)cx, (int)cy, rx, ry);
+    }
+
+    // Khuôn mặt Pet bên trong quả bong bóng đang bay lên
+    if (el < 1.35f) {
+      // Mắt tròn ngạc nhiên thích thú + miệng chu chữ "o" thổi hơi
+      canvas.fillSmoothCircle((int)cx - 21, (int)cy - 2, 7, colWhite);
+      canvas.fillSmoothCircle((int)cx + 21, (int)cy - 2, 7, colWhite);
+      canvas.fillSmoothCircle((int)cx - 19, (int)cy - 4, 2, colSkyBlue);
+      canvas.fillSmoothCircle((int)cx + 23, (int)cy - 4, 2, colSkyBlue);
+      canvas.drawCircle((int)cx, (int)cy + 14, 4, colWhite);
+      canvas.drawCircle((int)cx, (int)cy + 14, 3, colWhite);
+    } else {
+      // Mắt cười tít ⌒ ⌒ + miệng cười nhỏ tận hưởng cảm giác lơ lửng trên không!
+      float tilt = cosf((el - 0.70f) * 4.2f) * 0.12f;
+      drawUpwardArcEye(cx, cy, -20.0f, 1.0f, 9.0f, 3.8f, tilt, colWhite);
+      drawUpwardArcEye(cx, cy,  20.0f, 1.0f, 9.0f, 3.8f, tilt, colWhite);
+      drawDownwardSleepEye(cx, cy + 8.0f, 7.0f, 3.0f, colWhite);
+    }
+  }
+
+  // Ánh sao lấp lánh trên bầu trời khi bong bóng bay khuất lên cao
+  if (el > 3.15f && el < 4.00f) {
+    float sp = (el - 3.15f) / 0.85f;
+    float tw = sinf(sp * 3.14159f);
+    if (tw > 0.1f) {
+      drawSmallStar(96.0f,  32.0f, 7.5f * tw, tft.color565(244, 114, 182));
+      drawSmallStar(146.0f, 24.0f, 9.0f * tw, colYellowLight);
+      drawSmallStar(120.0f, 44.0f, 6.5f * tw, colIceBlue);
+    }
+  }
+}
+
+// ======================= 6.8 QUÁ TẢI NỔ NÃO ĐÁM MÂY HÌNH NẤM (🤯 MIND-BLOWN) =======================
+void drawMindBlownScene(float el, float t) {
+  uint16_t colCoral  = tft.color565(244, 63, 94);
+  uint16_t colOrange = tft.color565(251, 146, 60);
+  uint16_t colPink   = tft.color565(244, 114, 182);
+  uint16_t colGreen  = tft.color565(74, 222, 128);
+
+  if (el < 1.15f) {
+    // Pha 1 (0.00 -> 1.15s): Mắt trợn tròn (⊙ ⊙), chóp đầu phồng căng rung bần bật sắp nổ!
+    float p      = el / 1.15f;
+    float shakeX = sinf(t * 68.0f) * (1.0f + p * 5.5f);
+    float shakeY = cosf(t * 54.0f) * (p * 3.0f);
+    float cx     = 120.0f + shakeX;
+    float cy     = 132.0f + shakeY;
+
+    float bulgeTop = 56.0f + p * p * 22.0f;
+    drawMochiHead(cx, cy, 64.0f + p * 6.0f, bulgeTop, 44.0f, 1.0f);
+
+    int er = 12 + (int)(p * 2.0f);
+    canvas.fillSmoothCircle((int)cx - 24, (int)cy + 2, er, colWhite);
+    canvas.fillSmoothCircle((int)cx + 24, (int)cy + 2, er, colWhite);
+    canvas.fillSmoothCircle((int)(cx - 24.0f + shakeX * 0.25f), (int)cy + 2, 3, colBg);
+    canvas.fillSmoothCircle((int)(cx + 24.0f + shakeX * 0.25f), (int)cy + 2, 3, colBg);
+
+    canvas.drawEllipse((int)cx, (int)cy + 23, 7 + (int)(p * 3.0f), 6 + (int)(p * 4.0f), colWhite);
+    canvas.drawEllipse((int)cx, (int)cy + 23, 6 + (int)(p * 3.0f), 5 + (int)(p * 4.0f), colWhite);
+
+    if (p > 0.45f) {
+      drawSmallStar(cx - 34.0f, cy - bulgeTop + 8.0f,  7.0f * p, colYellowLight);
+      drawSmallStar(cx + 36.0f, cy - bulgeTop + 12.0f, 8.0f * p, colOrange);
+    }
+  } else if (el < 4.15f) {
+    // Pha 2 & 3 (1.15 -> 4.15s): BÙM!! Bay nắp chóp đầu + Đám mây nấm khổng lồ phụt lên (🤯)!
+    if (!pet.boomPlayed) {
+      pet.boomPlayed = true;
+      if (ENABLE_SOUND && PIN_BUZZER >= 0) {
+        tone(PIN_BUZZER, 240, 50); delay(50);
+        tone(PIN_BUZZER, 120, 65); delay(65);
+        tone(PIN_BUZZER, 65,  90);
+      }
+    }
+    float boomEl  = el - 1.15f;
+    float fadeOut = (boomEl > 2.25f) ? (1.0f - (boomEl - 2.25f) / 0.75f) : 1.0f;
+    if (fadeOut < 0.0f) fadeOut = 0.0f;
+
+    float recoil = (boomEl < 0.35f) ? (sinf((boomEl / 0.35f) * 3.14159f) * 8.0f) : 0.0f;
+    float shakeX = (boomEl < 0.50f) ? (sinf(t * 60.0f) * 5.0f * (1.0f - boomEl / 0.50f)) : 0.0f;
+    float cx     = 120.0f + shakeX;
+    float cy     = 148.0f + recoil;
+    int   cutY   = (int)cy - 18;
+
+    // Vòng sóng xung kích nổ ban đầu
+    if (boomEl < 0.32f) {
+      float fp = boomEl / 0.32f;
+      canvas.drawCircle(120, cutY - 8, 18 + (int)(fp * 92.0f), colYellowLight);
+    }
+
+    // 1) Cột lửa & Đám mây hình nấm khổng lồ mọc thẳng từ đỉnh đầu rỗng!
+    if (fadeOut > 0.12f) {
+      float riseP   = (boomEl < 0.42f) ? (boomEl / 0.42f) : 1.0f;
+      float driftUp = (boomEl > 0.42f) ? ((boomEl - 0.42f) * 10.0f) : 0.0f;
+      int   capY    = (cutY - 8) - (int)(riseP * 68.0f + driftUp * 0.45f);
+
+      // Thân nấm phụt lên từ đầu
+      canvas.fillTriangle((int)cx - 20, cutY + 6, (int)cx + 20, cutY + 6, (int)cx, capY, colOrange);
+      canvas.fillRect((int)cx - 12, capY + 8, 24, (cutY + 6) - (capY + 8), colYellow);
+
+      if (riseP > 0.5f) {
+        canvas.drawEllipse((int)cx, (cutY + capY) / 2 + 2, (int)(21.0f * riseP), 5, colYellowLight);
+      }
+
+      // Mũ nấm 3 tầng màu rực rỡ (Đỏ cam -> Cam vàng -> Trắng sáng)
+      float capSc    = (0.35f + 0.65f * riseP) * fadeOut;
+      int   puffRoll = (int)(sinf(t * 8.0f) * 2.0f);
+
+      const int outerP[5][3] = {{-38, 8, 22}, {38, 8, 22}, {-23, -10, 24}, {23, -10, 24}, {0, -15, 27}};
+      for (int i = 0; i < 5; i++) {
+        canvas.fillSmoothCircle((int)(cx + outerP[i][0] * capSc),
+                                capY + (int)(outerP[i][1] * capSc) + puffRoll,
+                                (int)((outerP[i][2] + 2) * capSc), colCoral);
+      }
+      for (int i = 0; i < 5; i++) {
+        canvas.fillSmoothCircle((int)(cx + outerP[i][0] * 0.86f * capSc),
+                                capY + (int)((outerP[i][1] + 2) * capSc),
+                                (int)(outerP[i][2] * 0.88f * capSc), colOrange);
+      }
+
+      const int innerP[5][3] = {{-20, 4, 15}, {20, 4, 15}, {-11, -7, 17}, {11, -7, 17}, {0, 0, 19}};
+      for (int i = 0; i < 5; i++) {
+        canvas.fillSmoothCircle((int)(cx + innerP[i][0] * capSc),
+                                capY + (int)(innerP[i][1] * capSc),
+                                (int)(innerP[i][2] * capSc), colYellowLight);
+      }
+      canvas.fillSmoothCircle((int)cx, capY - 2, (int)(12.0f * capSc), colWhite);
+
+      // Mảnh pháo giấy & sao nhiều màu bắn tung ra hai bên!
+      float shardP = (boomEl < 1.6f) ? (boomEl / 1.6f) : 1.0f;
+      const uint16_t sCols[4] = {colSleepBlue, colYellow, colPink, colGreen};
+      for (int i = 0; i < 8; i++) {
+        float ang  = -3.14159f * 0.92f + ((float)i / 7.0f) * 3.14159f * 0.84f;
+        float dist = 36.0f + shardP * 68.0f;
+        float sx   = cx + cosf(ang) * dist;
+        float sy   = (float)(cutY - 12) + sinf(ang) * dist * 0.75f;
+        if (i % 2 == 0) {
+          drawSmallStar(sx, sy, 6.5f * fadeOut, sCols[i % 4]);
+        } else {
+          drawTriangleCrumb(sx, sy, 5.5f * fadeOut, t * 4.0f + i, sCols[i % 4]);
+        }
+      }
+    }
+
+    // 2) Phần dưới đầu Pet bị mất chóp trên (minLocalY = -18.0f) + miệng tròn há hốc 🤯!
+    drawMochiHead(cx, cy, 66.0f, 56.0f, 44.0f, 1.0f, 0.0f, 999.0f, -18.0f);
+    canvas.drawEllipse((int)cx, cutY, 54, 6, (fadeOut > 0.3f) ? colOrange : colIceBlue);
+
+    canvas.fillSmoothCircle((int)cx - 24, (int)cy + 4, 11, colWhite);
+    canvas.fillSmoothCircle((int)cx + 24, (int)cy + 4, 11, colWhite);
+    int pj = (int)(sinf(t * 35.0f) * 1.5f);
+    canvas.fillSmoothCircle((int)cx - 24 + pj, (int)cy + 4, 3, colBg);
+    canvas.fillSmoothCircle((int)cx + 24 - pj, (int)cy + 4, 3, colBg);
+
+    canvas.drawEllipse((int)cx, (int)cy + 23, 9, 7, colWhite);
+    canvas.drawEllipse((int)cx, (int)cy + 23, 8, 6, colWhite);
+  } else {
+    // Pha 4 (4.15 -> 4.80s): Mọc lại nắp chóp đầu tròn trịa như cũ!
+    float rp = (el - 4.15f) / 0.60f;
+    if (rp > 1.0f) rp = 1.0f;
+    float p1 = rp - 1.0f;
+    float easeBack = 1.0f + 2.0f * p1 * p1 * p1 + 1.0f * p1 * p1;
+    if (easeBack < 0.4f) easeBack = 0.4f;
+    float cy = 148.0f * (1.0f - rp) + 122.0f * rp;
+
+    drawMochiHead(120.0f, cy, 64.0f, 56.0f * easeBack, 46.0f, 1.0f);
+    drawPillEye(96,  (int)cy - 2, 13, 24, colWhite);
+    drawPillEye(144, (int)cy - 2, 13, 24, colWhite);
+  }
+}
+
 // ======================= 7. KHUÔN MẶT CHÍNH =======================
 void drawMainPetFace(float t) {
   float holdPress = pet.holding ? (pet.holdDuration / HOLD_DIZZY_SEC) : 0.0f;
@@ -1337,7 +1599,9 @@ void updateTouch(float dt) {
     if (!pet.dizzyTriggeredInHold && held >= 0.025f && held < HOLD_DIZZY_SEC) {
       PetMode next = TAP_SEQUENCE[seqIndex % TAP_SEQ_LEN];
       seqIndex++;
-      float dur = (next == MODE_IDLE) ? 999.0f : ((next == MODE_MELT || next == MODE_FREEZE) ? 5.0f : 2.6f);
+      float dur = (next == MODE_IDLE) ? 999.0f
+                : ((next == MODE_MELT || next == MODE_FREEZE) ? 5.0f
+                : ((next == MODE_MINDBLOWN) ? 4.8f : ((next == MODE_BUBBLE) ? 4.6f : 2.6f)));
       setPetMode(next, dur, true, true);
     } else if (pet.mode == MODE_DIZZY) {
       pet.modeDuration = pet.animElapsed + 2.4f;
@@ -1416,7 +1680,8 @@ void loop() {
         PetMode nextStory = IDLE_STORIES[storyIndex % IDLE_STORY_LEN];
         storyIndex++;
         float dur = (nextStory == MODE_MELT || nextStory == MODE_FREEZE) ? 5.0f
-                  : ((nextStory == MODE_FORTUNE) ? 4.3f : 3.9f);
+                  : ((nextStory == MODE_MINDBLOWN) ? 4.8f
+                  : ((nextStory == MODE_BUBBLE) ? 4.6f : ((nextStory == MODE_FORTUNE) ? 4.3f : 3.9f)));
         setPetMode(nextStory, dur, true, false);
       }
     }
@@ -1483,6 +1748,12 @@ void loop() {
       break;
     case MODE_FREEZE:
       drawFreezeScene(pet.animElapsed, t);
+      break;
+    case MODE_BUBBLE:
+      drawBubbleScene(pet.animElapsed, t);
+      break;
+    case MODE_MINDBLOWN:
+      drawMindBlownScene(pet.animElapsed, t);
       break;
     case MODE_DIZZY:
       drawDizzyScene(t);

@@ -241,6 +241,8 @@
         <button class="mode-btn" data-mode="happy">😊 Cười tươi (:D)</button>
         <button class="mode-btn" data-mode="freeze">🥶 Lạnh cóng &rarr; Đóng tảng băng</button>
         <button class="mode-btn" data-mode="melt">🫠 Đỏ mặt &rarr; Tan chảy bốc hơi</button>
+        <button class="mode-btn" data-mode="bubble">🫧 Hóa bong bóng bay lên</button>
+        <button class="mode-btn" data-mode="mindblown">🤯 Quá tải &rarr; Nổ tung não!</button>
         <button class="mode-btn" data-mode="dizzy">😵 Bị choáng (Giữ &gt;0.5s)</button>
         <button class="mode-btn" data-mode="baseball">⚾ Đánh bóng chày (Mũ vàng)</button>
         <button class="mode-btn" data-mode="fortune">🥠 Nhảy trên chữ Luck is Yours</button>
@@ -275,8 +277,8 @@
     const idle15Toggle = document.getElementById('idle15Toggle');
     const modeButtons = document.querySelectorAll('.mode-btn');
 
-    const TAP_SEQUENCE = ['wink', 'angry', 'happy', 'idle', 'freeze', 'melt', 'wink', 'happy'];
-    const IDLE_STORIES = ['baseball', 'fortune', 'freeze', 'melt', 'humming'];
+    const TAP_SEQUENCE = ['wink', 'angry', 'happy', 'mindblown', 'bubble', 'idle', 'freeze', 'melt', 'wink', 'happy'];
+    const IDLE_STORIES = ['baseball', 'fortune', 'freeze', 'melt', 'bubble', 'mindblown', 'humming'];
     const LUCKY_WISHES = [
       'Luck is Yours',
       'Stay Happy :)',
@@ -325,6 +327,7 @@
       boilSoundPlayed: false,
       iceSoundPlayed: false,
       shatterSoundPlayed: false,
+      boomSoundPlayed: false,
       currentWish: LUCKY_WISHES[0]
     };
 
@@ -422,6 +425,29 @@
           osc.frequency.exponentialRampToValueAtTime(620, now + 0.14);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
           osc.start(now); osc.stop(now + 0.18);
+        } else if (type === 'bubble') {
+          osc.type = 'sine';
+          gain.gain.setValueAtTime(0.07, now);
+          osc.frequency.setValueAtTime(523, now);
+          osc.frequency.exponentialRampToValueAtTime(784, now + 0.08);
+          osc.frequency.setValueAtTime(1046, now + 0.09);
+          osc.frequency.exponentialRampToValueAtTime(1568, now + 0.22);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.28);
+          osc.start(now); osc.stop(now + 0.28);
+        } else if (type === 'mindblown') {
+          osc.type = 'sawtooth';
+          gain.gain.setValueAtTime(0.035, now);
+          osc.frequency.setValueAtTime(280, now);
+          osc.frequency.exponentialRampToValueAtTime(1480, now + 0.35);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+          osc.start(now); osc.stop(now + 0.38);
+        } else if (type === 'mind_boom') {
+          osc.type = 'sawtooth';
+          gain.gain.setValueAtTime(0.12, now);
+          osc.frequency.setValueAtTime(240, now);
+          osc.frequency.exponentialRampToValueAtTime(48, now + 0.32);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.36);
+          osc.start(now); osc.stop(now + 0.36);
         } else if (type === 'wink') {
           osc.type = 'sine';
           osc.frequency.setValueAtTime(880, now);
@@ -454,7 +480,8 @@
     function updateButtonsUI() {
       const labels = {
         boot: 'HI!', idle: 'IDLE', wink: 'WINK', angry: 'ANGRY',
-        happy: 'HAPPY', melt: 'MELTING', freeze: 'FROZEN', dizzy: 'DIZZY', baseball: 'BASEBALL',
+        happy: 'HAPPY', melt: 'MELTING', freeze: 'FROZEN', bubble: 'BUBBLE',
+        mindblown: 'MIND BLOWN!', dizzy: 'DIZZY', baseball: 'BASEBALL',
         fortune: 'LUCK', humming: 'MUSIC',
         fall_asleep: 'SLEEPING..', sleep: 'OFF (NGỦ)', wakeup: 'WAKE UP!'
       };
@@ -482,6 +509,7 @@
       state.boilSoundPlayed = false;
       state.iceSoundPlayed = false;
       state.shatterSoundPlayed = false;
+      state.boomSoundPlayed = false;
       updateButtonsUI();
       if (sound) {
         if (newMode === 'fall_asleep') playChirp('sleep');
@@ -502,7 +530,8 @@
       }
       const next = TAP_SEQUENCE[seqIndex % TAP_SEQUENCE.length];
       seqIndex++;
-      setMode(next, next === 'idle' ? 999 : ((next === 'melt' || next === 'freeze') ? 5.0 : 2.6), true, true);
+      const dur = next === 'idle' ? 999 : ((next === 'melt' || next === 'freeze') ? 5.0 : (next === 'mindblown' ? 4.8 : (next === 'bubble' ? 4.6 : 2.6)));
+      setMode(next, dur, true, true);
     }
 
     function onPressDown(e) {
@@ -547,6 +576,8 @@
       if (e.code === 'Space') { e.preventDefault(); triggerTap(); }
       else if (e.code === 'KeyM') { setMode('melt', 5.0, true, true); }
       else if (e.code === 'KeyF') { setMode('freeze', 5.0, true, true); }
+      else if (e.code === 'KeyU') { setMode('bubble', 4.6, true, true); }
+      else if (e.code === 'KeyX') { setMode('mindblown', 4.8, true, true); }
       else if (e.code === 'KeyB') { setMode('baseball', 3.9, true, true); }
       else if (e.code === 'KeyS') {
         if (state.mode === 'sleep' || state.mode === 'fall_asleep') setMode('wakeup', 3.15, true, true);
@@ -562,7 +593,7 @@
           else setMode('fall_asleep', 2.5, true, false);
           return;
         }
-        const dur = (m === 'idle') ? 999 : (m === 'fortune' ? 4.3 : (m === 'baseball' || m === 'humming' ? 3.9 : ((m === 'melt' || m === 'freeze') ? 5.0 : 3.1)));
+        const dur = (m === 'idle') ? 999 : (m === 'fortune' ? 4.3 : (m === 'baseball' || m === 'humming' ? 3.9 : ((m === 'melt' || m === 'freeze') ? 5.0 : (m === 'mindblown' ? 4.8 : (m === 'bubble' ? 4.6 : 3.1)))));
         setMode(m, dur, true, true);
       });
     });
@@ -1833,6 +1864,339 @@
       }
     }
 
+    function drawIridescentSoapBubble(cx, cy, rx, ry, morphP = 1.0, alpha = 1.0) {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+
+      const bGrad = ctx.createRadialGradient(cx - rx * 0.28, cy - ry * 0.28, rx * 0.1, cx, cy, Math.max(rx, ry));
+      bGrad.addColorStop(0, 'rgba(255, 255, 255, 0.10)');
+      bGrad.addColorStop(0.55, 'rgba(56, 189, 248, 0.14)');
+      bGrad.addColorStop(0.88, 'rgba(244, 114, 182, 0.22)');
+      bGrad.addColorStop(1, 'rgba(125, 211, 252, 0.42)');
+      ctx.fillStyle = bGrad;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#bae6fd';
+      ctx.lineWidth = 3.2 - morphP * 0.6;
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 12;
+      ctx.stroke();
+
+      ctx.shadowBlur = 0;
+      ctx.lineCap = 'round';
+      ctx.lineWidth = 2.6;
+      ctx.strokeStyle = 'rgba(244, 114, 182, 0.82)';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx - 2.5, ry - 2.5, 0, -Math.PI * 0.38, Math.PI * 0.08);
+      ctx.stroke();
+
+      ctx.strokeStyle = 'rgba(253, 224, 71, 0.78)';
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, rx - 2.5, ry - 2.5, 0, Math.PI * 0.58, Math.PI * 0.95);
+      ctx.stroke();
+
+      if (rx > 10) {
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = Math.max(1.8, rx * 0.065);
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, rx * 0.74, ry * 0.74, 0, Math.PI * 1.08, Math.PI * 1.44);
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(cx + rx * 0.48, cy + ry * 0.48, Math.max(1.5, rx * 0.06), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawBubbleScene(el, t) {
+      if (el >= 4.00) {
+        const rp = Math.min(1, (el - 4.00) / 0.55);
+        const easeBack = 1 + 2.0 * Math.pow(rp - 1, 3) + 1.0 * Math.pow(rp - 1, 2);
+        const sc = Math.max(0.1, 0.25 + 0.75 * easeBack);
+        strokeNeonMochiHead(120, 122 + (1 - easeBack) * 24, 64, 56, 46, sc, Math.min(1, rp * 2));
+        ctx.fillStyle = '#ffffff';
+        fillPill(120 - 24 * sc, 120 + (1 - easeBack) * 24, 13 * sc, 24 * sc);
+        fillPill(120 + 24 * sc, 120 + (1 - easeBack) * 24, 13 * sc, 24 * sc);
+        return;
+      }
+
+      if (el > 0.45) {
+        const trailAlpha = el > 3.55 ? Math.max(0, 1 - (el - 3.55) / 0.45) : Math.min(1, (el - 0.45) / 0.5);
+        for (let i = 0; i < 9; i++) {
+          const bp = ((el * 0.52) + i * 0.14) % 1;
+          const bx = 34 + ((i * 23) % 172) + Math.sin(bp * 6 + i * 1.7) * 12;
+          const by = 225 - bp * 245;
+          const br = 4.5 + (i % 3) * 3.5;
+          drawIridescentSoapBubble(bx, by, br, br, 1.0, Math.sin(bp * Math.PI) * 0.85 * trailAlpha);
+        }
+      }
+
+      const morphP = Math.min(1, el / 0.85);
+      const floatP = el > 0.85 ? (el - 0.85) / 2.85 : 0;
+      const liftY = floatP > 0 ? Math.pow(floatP, 1.45) * 215 : Math.sin(morphP * Math.PI) * -4;
+      const swayX = el > 0.7 ? Math.sin((el - 0.7) * 4.2) * 20 * Math.min(1, floatP * 2.2) : 0;
+
+      const cx = 120 + swayX;
+      const cy = 124 - liftY;
+      const wobble = Math.sin(t * 7.5) * 2.8 * morphP;
+      const rx = 64 * (1 - morphP) + 56 * morphP + wobble;
+      const ry = 51 * (1 - morphP) + 56 * morphP - wobble;
+
+      if (cy > -70) {
+        if (morphP < 0.85) {
+          strokeNeonMochiHead(cx, cy, 64, 56, 46, 1.0, 1 - morphP / 0.85);
+        }
+        if (morphP > 0.15) {
+          drawIridescentSoapBubble(cx, cy, rx, ry, morphP, Math.min(1, (morphP - 0.15) / 0.55));
+        }
+
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineCap = 'round';
+
+        if (el < 1.35) {
+          ctx.beginPath();
+          ctx.arc(cx - 21, cy - 2, 7.5, 0, Math.PI * 2);
+          ctx.arc(cx + 21, cy - 2, 7.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#38bdf8';
+          ctx.beginPath();
+          ctx.arc(cx - 19, cy - 4, 2.2, 0, Math.PI * 2);
+          ctx.arc(cx + 23, cy - 4, 2.2, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(cx, cy + 14, 4.5, 0, Math.PI * 2);
+          ctx.stroke();
+        } else {
+          const tilt = Math.cos((el - 0.7) * 4.2) * 0.12;
+          ctx.translate(cx, cy);
+          ctx.rotate(tilt);
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.arc(-20, -1, 9, Math.PI * 1.15, Math.PI * 1.85);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(20, -1, 9, Math.PI * 1.15, Math.PI * 1.85);
+          ctx.stroke();
+          ctx.lineWidth = 3.2;
+          ctx.beginPath();
+          ctx.arc(0, 8, 7, Math.PI * 0.15, Math.PI * 0.85);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      if (el > 3.15 && el < 4.00) {
+        const sp = (el - 3.15) / 0.85;
+        const tw = Math.sin(sp * Math.PI);
+        drawStar(96, 32, 4, 9 * tw, 3 * tw, '#f472b6');
+        drawStar(146, 24, 4, 11 * tw, 3.5 * tw, '#fde047');
+        drawStar(120, 44, 4, 8 * tw, 2.5 * tw, '#7dd3fc');
+      }
+    }
+
+    function drawMindBlownScene(el, t) {
+      if (el < 1.15) {
+        const p = el / 1.15;
+        const shakeX = Math.sin(t * 68) * (1 + p * 5.5);
+        const shakeY = Math.cos(t * 54) * (p * 3);
+        const cx = 120 + shakeX;
+        const cy = 132 + shakeY;
+
+        const bulgeTop = 56 + p * p * 22;
+        const rCol = Math.round(36 + p * 219);
+        const gCol = Math.round(155 - p * 65);
+        const bCol = Math.round(255 - p * 185);
+
+        ctx.save();
+        mochiHeadPath(cx, cy, 64 + p * 6, bulgeTop, 44);
+        ctx.fillStyle = `rgba(249, 115, 22, ${0.28 * p})`;
+        ctx.fill();
+        ctx.strokeStyle = `rgb(${rCol},${gCol},${bCol})`;
+        ctx.lineWidth = 10;
+        ctx.shadowColor = p > 0.5 ? '#f97316' : '#38bdf8';
+        ctx.shadowBlur = 16;
+        ctx.stroke();
+
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(cx - 24, cy + 2, 12 + p * 2, 0, Math.PI * 2);
+        ctx.arc(cx + 24, cy + 2, 12 + p * 2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(cx - 24 + shakeX * 0.25, cy + 2, 3.2, 0, Math.PI * 2);
+        ctx.arc(cx + 24 + shakeX * 0.25, cy + 2, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy + 23, 7 + p * 3, 6 + p * 4, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        if (p > 0.45) {
+          drawStar(cx - 34, cy - bulgeTop + 8, 4, 8 * p, 3, '#fde047');
+          drawStar(cx + 36, cy - bulgeTop + 12, 4, 9 * p, 3, '#fb923c');
+        }
+        ctx.restore();
+      } else if (el < 4.15) {
+        if (!state.boomSoundPlayed) {
+          state.boomSoundPlayed = true;
+          playChirp('mind_boom');
+        }
+        const boomEl = el - 1.15;
+        const fadeOut = boomEl > 2.25 ? Math.max(0, 1 - (boomEl - 2.25) / 0.75) : 1.0;
+        const recoil = boomEl < 0.35 ? Math.sin((boomEl / 0.35) * Math.PI) * 8 : 0;
+        const shakeX = boomEl < 0.5 ? Math.sin(t * 60) * 5 * (1 - boomEl / 0.5) : 0;
+
+        const cx = 120 + shakeX;
+        const cy = 148 + recoil;
+        const cutY = cy - 18;
+
+        if (boomEl < 0.32) {
+          const fp = boomEl / 0.32;
+          ctx.save();
+          ctx.strokeStyle = `rgba(254, 240, 138, ${1 - fp})`;
+          ctx.lineWidth = 6 * (1 - fp);
+          ctx.beginPath();
+          ctx.arc(120, cutY - 8, 18 + fp * 95, 0, Math.PI * 2);
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        if (fadeOut > 0.02) {
+          const riseP = Math.min(1, boomEl / 0.42);
+          const driftUp = boomEl > 0.42 ? (boomEl - 0.42) * 10 : 0;
+          const capY = (cutY - 8) - riseP * 68 - driftUp * 0.45;
+
+          ctx.save();
+          ctx.globalAlpha = fadeOut;
+
+          const stemGrad = ctx.createLinearGradient(120, cutY + 6, 120, capY);
+          stemGrad.addColorStop(0, '#f97316');
+          stemGrad.addColorStop(0.5, '#facc15');
+          stemGrad.addColorStop(1, '#fef08a');
+          ctx.fillStyle = stemGrad;
+          ctx.beginPath();
+          ctx.moveTo(cx - 22, cutY + 6);
+          ctx.quadraticCurveTo(cx - 11, (cutY + capY) * 0.5, cx - 20, capY + 12);
+          ctx.lineTo(cx + 20, capY + 12);
+          ctx.quadraticCurveTo(cx + 11, (cutY + capY) * 0.5, cx + 22, cutY + 6);
+          ctx.closePath();
+          ctx.fill();
+
+          if (riseP > 0.5) {
+            ctx.strokeStyle = '#fed7aa';
+            ctx.lineWidth = 4.5;
+            ctx.beginPath();
+            ctx.ellipse(cx, (cutY + capY) * 0.54, 22 * riseP, 5.5, 0, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+
+          const capScale = (0.35 + 0.65 * riseP) * (1 + boomEl * 0.06);
+          const puffRoll = Math.sin(t * 8) * 2.5;
+
+          const outerPuffs = [
+            [-40, 8, 22], [40, 8, 22], [-24, -10, 25], [24, -10, 25], [0, -16, 28]
+          ];
+          ctx.fillStyle = '#f43f5e';
+          outerPuffs.forEach(([dx, dy, r]) => {
+            ctx.beginPath();
+            ctx.arc(cx + dx * capScale, capY + dy * capScale + puffRoll * 0.4, (r + 3) * capScale, 0, Math.PI * 2);
+            ctx.fill();
+          });
+
+          ctx.fillStyle = '#fb923c';
+          outerPuffs.forEach(([dx, dy, r]) => {
+            ctx.beginPath();
+            ctx.arc(cx + dx * 0.88 * capScale, capY + (dy + 2) * capScale, r * 0.92 * capScale, 0, Math.PI * 2);
+            ctx.fill();
+          });
+
+          const innerPuffs = [[-22, 4, 16], [22, 4, 16], [-12, -8, 18], [12, -8, 18], [0, 0, 20]];
+          ctx.fillStyle = '#fde047';
+          innerPuffs.forEach(([dx, dy, r]) => {
+            ctx.beginPath();
+            ctx.arc(cx + dx * capScale, capY + dy * capScale - puffRoll * 0.3, r * capScale, 0, Math.PI * 2);
+            ctx.fill();
+          });
+          ctx.fillStyle = '#ffffff';
+          ctx.beginPath();
+          ctx.arc(cx, capY - 2 * capScale, 13 * capScale, 0, Math.PI * 2);
+          ctx.arc(cx - 14 * capScale, capY + 2 * capScale, 10 * capScale, 0, Math.PI * 2);
+          ctx.arc(cx + 14 * capScale, capY + 2 * capScale, 10 * capScale, 0, Math.PI * 2);
+          ctx.fill();
+
+          const shardP = Math.min(1, boomEl / 1.6);
+          const colors = ['#38bdf8', '#facc15', '#f472b6', '#4ade80'];
+          for (let i = 0; i < 8; i++) {
+            const ang = -Math.PI * 0.92 + (i / 7) * Math.PI * 0.84;
+            const dist = 36 + shardP * 68;
+            const sx = cx + Math.cos(ang) * dist;
+            const sy = (cutY - 12) + Math.sin(ang) * dist * 0.75;
+            if (i % 2 === 0) {
+              drawStar(sx, sy, 4, 7.5 * fadeOut, 2.5 * fadeOut, colors[i % 4]);
+            } else {
+              drawTriangleCrumb(sx, sy, 5.5 * fadeOut, t * 4 + i, colors[i % 4]);
+            }
+          }
+          ctx.restore();
+        }
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, cutY, 240, 240 - cutY);
+        ctx.clip();
+        strokeNeonMochiHead(cx, cy, 66, 56, 44, 1.0);
+        ctx.restore();
+
+        ctx.save();
+        ctx.strokeStyle = fadeOut > 0.3 ? '#fb923c' : '#67c6ff';
+        ctx.lineWidth = 3.2;
+        ctx.beginPath();
+        ctx.ellipse(cx, cutY, 55, 6.5, 0, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath();
+        ctx.arc(cx - 24, cy + 4, 11.5, 0, Math.PI * 2);
+        ctx.arc(cx + 24, cy + 4, 11.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        const pupilJitter = Math.sin(t * 35) * 1.5;
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.arc(cx - 24 + pupilJitter, cy + 4, 3.2, 0, Math.PI * 2);
+        ctx.arc(cx + 24 - pupilJitter, cy + 4, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.ellipse(cx, cy + 23, 9.5, 7.5, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+      } else {
+        const rp = Math.min(1, (el - 4.15) / 0.60);
+        const easeBack = 1 + 2.0 * Math.pow(rp - 1, 3) + 1.0 * Math.pow(rp - 1, 2);
+        const cy = 148 * (1 - rp) + 122 * rp;
+        strokeNeonMochiHead(120, cy, 64, 56 * Math.max(0.4, easeBack), 46, 1.0);
+        ctx.fillStyle = '#ffffff';
+        fillPill(96, cy - 2, 13, 24);
+        fillPill(144, cy - 2, 13, 24);
+      }
+    }
+
     function drawMainPetFace(t) {
       const holdPress = state.holding ? Math.min(1, state.holdDuration / HOLD_DIZZY_SEC) : 0;
       const shakeX = holdPress > 0.15 ? Math.sin(t * 45) * (holdPress * 4) : 0;
@@ -1963,7 +2327,7 @@
           } else if (state.idleCountdown <= 0) {
             const nextStory = IDLE_STORIES[storyIndex % IDLE_STORIES.length];
             storyIndex++;
-            const dur = (nextStory === 'melt' || nextStory === 'freeze') ? 5.0 : (nextStory === 'fortune' ? 4.3 : 3.9);
+            const dur = (nextStory === 'melt' || nextStory === 'freeze') ? 5.0 : (nextStory === 'mindblown' ? 4.8 : (nextStory === 'bubble' ? 4.6 : (nextStory === 'fortune' ? 4.3 : 3.9)));
             setMode(nextStory, dur, true, false);
           }
         } else {
@@ -2017,6 +2381,8 @@
       else if (state.mode === 'boot') drawBootHiScene(state.animElapsed);
       else if (state.mode === 'melt') drawMeltScene(state.animElapsed, t);
       else if (state.mode === 'freeze') drawFreezeScene(state.animElapsed, t);
+      else if (state.mode === 'bubble') drawBubbleScene(state.animElapsed, t);
+      else if (state.mode === 'mindblown') drawMindBlownScene(state.animElapsed, t);
       else if (state.mode === 'dizzy') drawDizzyScene(t);
       else if (state.mode === 'baseball') drawBaseballScene(state.animElapsed, t);
       else if (state.mode === 'fortune') drawFortuneScene(state.animElapsed, t);
