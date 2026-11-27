@@ -90,6 +90,7 @@ public:
 
 LGFX_DeskPet tft;
 LGFX_Sprite  canvas(&tft);
+LGFX_Sprite  charSpr(&canvas);
 
 // ======================= TRẠNG THÁI HOẠT ĐỘNG =======================
 enum PetMode {
@@ -180,22 +181,22 @@ uint16_t colWhite;
 uint16_t colYellow;
 uint16_t colYellowLight;
 uint16_t colGoldDark;
-uint16_t colBannerBg;
-uint16_t colBannerShadow;
+uint16_t colRibbonText;
+uint16_t colTransp;
 
 void initPalette() {
-  colBg           = tft.color565(0, 0, 0);
-  colHaloBlue     = tft.color565(14, 58, 138);
-  colSkyBlue      = tft.color565(36, 155, 255);
-  colSleepBlue    = tft.color565(56, 189, 248);
-  colBubbleFill   = tft.color565(14, 72, 128);
-  colIceBlue      = tft.color565(135, 212, 255);
-  colWhite        = tft.color565(255, 255, 255);
-  colYellow       = tft.color565(250, 204, 21);
-  colYellowLight  = tft.color565(254, 240, 138);
-  colGoldDark     = tft.color565(180, 115, 8);
-  colBannerBg     = tft.color565(234, 168, 8);
-  colBannerShadow = tft.color565(146, 78, 4);
+  colBg          = tft.color565(0, 0, 0);
+  colHaloBlue    = tft.color565(14, 58, 138);
+  colSkyBlue     = tft.color565(36, 155, 255);
+  colSleepBlue   = tft.color565(56, 189, 248);
+  colBubbleFill  = tft.color565(14, 72, 128);
+  colIceBlue     = tft.color565(135, 212, 255);
+  colWhite       = tft.color565(255, 255, 255);
+  colYellow      = tft.color565(250, 204, 21);
+  colYellowLight = tft.color565(254, 240, 138);
+  colGoldDark    = tft.color565(180, 115, 8);
+  colRibbonText  = tft.color565(15, 23, 42);
+  colTransp      = tft.color565(255, 0, 255);
 }
 
 void setBacklight(bool on) {
@@ -548,28 +549,109 @@ void drawBaseballScene(float el, float t) {
   }
 }
 
-// ======================= 4. BÁNH MAY MẮN: CHỮ TRẮNG NỀN VÀNG + NHIỀU CÂU CHÚC =======================
-void drawLuckBanner(int bannerY, int bw) {
-  int bx = 120 - bw / 2;
-  canvas.fillSmoothRoundRect(bx, bannerY, bw, 36, 9, colBannerBg);
-  canvas.drawRoundRect(bx, bannerY, bw, 36, 9, colYellowLight);
-  if (bw >= 120) {
-    canvas.setFont(&fonts::FreeSansBold9pt7b);
-    int tw = canvas.textWidth(pet.currentWish);
-    int tx = 120 - tw / 2;
-    // Đổ bóng 1px vàng sẫm để chữ trắng nổi bật sắc nét trên nền vàng
-    canvas.setTextColor(colBannerShadow);
-    canvas.setCursor(tx + 1, bannerY + 12);
-    canvas.print(pet.currentWish);
+// ======================= 4. BÁNH MAY MẮN: DẢI LỤA 3D UỐN LƯỢN + CHỮ CONG THEO SÓNG =======================
+float fortuneWaveOffset(float u, float extraDip = 0.0f) {
+  return -8.5f * cosf(u * 3.14159f * 1.42f) + (3.2f + extraDip) * sinf(u * 3.14159f);
+}
 
-    canvas.setTextColor(colWhite);
-    canvas.setCursor(tx, bannerY + 11);
-    canvas.print(pet.currentWish);
+void drawTriangleCrumb(float cx, float cy, float sz, float rot, uint16_t color) {
+  float x0 = cx + sinf(rot) * sz;
+  float y0 = cy - cosf(rot) * sz;
+  float x1 = cx + sinf(rot + 2.1f) * sz;
+  float y1 = cy - cosf(rot + 2.1f) * sz;
+  float x2 = cx + sinf(rot + 4.2f) * sz;
+  float y2 = cy - cosf(rot + 4.2f) * sz;
+  canvas.fillTriangle((int)x0, (int)y0, (int)x1, (int)y1, (int)x2, (int)y2, color);
+}
+
+void draw3DWavyScroll(int centerY, float openP, const char* wishText, float extraDip = 0.0f) {
+  float halfW  = 70.0f * openP;
+  int   xLeft  = 118 - (int)halfW;
+  int   xRight = 118 + (int)halfW;
+  int   spanW  = xRight - xLeft;
+  const int ribbonH = 33;
+
+  // 1) Đầu cuộn vàng khối 3D bên trái
+  int ly = centerY + (int)fortuneWaveOffset(0.0f, extraDip);
+  canvas.fillTriangle(xLeft - 4, ly - 22, xLeft + 10, ly - 15, xLeft + 8, ly + 18, colGoldDark);
+  canvas.fillTriangle(xLeft - 4, ly - 22, xLeft + 8,  ly + 18, xLeft - 4, ly + 22, colGoldDark);
+  canvas.fillTriangle(xLeft - 17, ly - 21, xLeft - 2, ly - 22, xLeft - 1,  ly + 19, colYellowLight);
+  canvas.fillTriangle(xLeft - 17, ly - 21, xLeft - 1, ly + 19, xLeft - 17, ly + 24, colYellow);
+
+  // 2) Đầu cuộn vàng khối 3D bên phải (2 mặt vát khối 3D giống hệt ảnh mẫu)
+  int ry = centerY + (int)fortuneWaveOffset(1.0f, extraDip);
+  canvas.fillTriangle(xRight - 8, ry - 20, xRight + 6, ry - 25, xRight + 6, ry + 20, colGoldDark);
+  canvas.fillTriangle(xRight - 3, ry - 24, xRight + 6, ry - 20, xRight + 6, ry + 25, colYellow);
+  canvas.fillTriangle(xRight - 3, ry - 24, xRight + 6, ry + 25, xRight - 3, ry + 19, colGoldDark);
+  canvas.fillTriangle(xRight + 5, ry - 23, xRight + 23, ry - 16, xRight + 22, ry + 23, colYellowLight);
+  canvas.fillTriangle(xRight + 5, ry - 23, xRight + 22, ry + 23, xRight + 5,  ry + 26, colYellow);
+
+  if (spanW < 24) return;
+
+  // 3) Thân dải lụa uốn lượn chữ S kèm đổ bóng 3D trắng -> xanh băng ở hõm giữa -> trắng
+  for (int ix = xLeft; ix <= xRight; ix += 2) {
+    float u = (float)(ix - xLeft) / (float)spanW;
+    int wy  = centerY + (int)fortuneWaveOffset(u, extraDip);
+    int topY = wy - ribbonH / 2;
+
+    // Tính độ trũng để pha màu bóng 3D xanh băng ở phần hõm lượn
+    float valley = sinf(u * 3.14159f);
+    valley = valley * valley;
+    uint8_t rCol = (uint8_t)(250.0f - valley * 102.0f);
+    uint8_t gCol = (uint8_t)(252.0f - valley * 54.0f);
+    uint8_t bCol = 254;
+    uint16_t stripCol = tft.color565(rCol, gCol, bCol);
+
+    canvas.fillRect(ix, topY, 2, ribbonH, stripCol);
+    canvas.fillRect(ix, topY - 1, 2, 2, colSkyBlue);
+    canvas.fillRect(ix, topY + ribbonH - 1, 2, 2, colSkyBlue);
+  }
+
+  // 4) Vẽ từng ký tự nghiêng & uốn lượn dọc theo đúng đường cong của dải lụa!
+  if (openP > 0.68f && wishText != nullptr) {
+    charSpr.setFont(&fonts::FreeSansBold9pt7b);
+    int len = strlen(wishText);
+    int totalW = 0;
+    int charW[24];
+    for (int i = 0; i < len && i < 24; i++) {
+      char buf[2] = { wishText[i], '\0' };
+      int w = charSpr.textWidth(buf);
+      if (wishText[i] == ' ') w = 5;
+      charW[i] = w + 1;
+      totalW += charW[i];
+    }
+
+    float curX = (xLeft + xRight) * 0.5f - totalW * 0.5f;
+    for (int i = 0; i < len && i < 24; i++) {
+      int cw = charW[i];
+      float charCx = curX + cw * 0.5f;
+      if (wishText[i] != ' ') {
+        float u = (charCx - xLeft) / (float)spanW;
+        if (u < 0.03f) u = 0.03f;
+        if (u > 0.97f) u = 0.97f;
+        float charCy = (float)centerY + fortuneWaveOffset(u, extraDip) + 1.0f;
+
+        float du = 0.03f;
+        float u1 = (u + du < 1.0f) ? (u + du) : 1.0f;
+        float u0 = (u - du > 0.0f) ? (u - du) : 0.0f;
+        float dy = fortuneWaveOffset(u1, extraDip) - fortuneWaveOffset(u0, extraDip);
+        float dx = (u1 - u0) * (float)spanW;
+        float deg = atan2f(dy, dx) * 57.29578f;
+
+        char buf[2] = { wishText[i], '\0' };
+        charSpr.fillSprite(colTransp);
+        charSpr.setTextColor(colRibbonText);
+        charSpr.setCursor(12 - cw / 2, 4);
+        charSpr.print(buf);
+        charSpr.pushRotateZoom(charCx, charCy, deg, 1.0f, 1.0f, colTransp);
+      }
+      curX += cw;
+    }
   }
 }
 
 void drawFortuneScene(float el, float t) {
-  if (el < 1.10f) {
+  if (el < 1.05f) {
     float shake = sinf(t * 36.0f) * 7.0f;
     int cx = 120 + (int)shake;
     int cy = 128;
@@ -583,53 +665,65 @@ void drawFortuneScene(float el, float t) {
     canvas.fillTriangle(cx - 32, cy + 50, cx + 32, cy + 50, cx, cy + 2, colBg);
     canvas.drawWideLine(cx - 14, cy + 26, cx, cy - 6, 4.0f, colGoldDark);
     canvas.drawWideLine(cx + 14, cy + 26, cx, cy - 6, 4.0f, colGoldDark);
-  } else if (el < 2.25f) {
-    float openP = (el - 1.10f) / 0.35f;
+  } else if (el < 2.55f) {
+    // Pha 2 (Giống hệt ảnh mẫu!): Bé Pet ló đầu nháy mắt (• <) sau mép phải dải lụa 3D + vụn tam giác vàng!
+    float openP = (el - 1.05f) / 0.35f;
     if (openP > 1.0f) openP = 1.0f;
-    int splitX  = 22 + (int)(openP * 64.0f);
-    int bannerY = 122 + (int)(openP * 24.0f);
+    int scrollY = 128;
 
-    drawMochiHead(154.0f, (float)(bannerY - 20), 64.0f, 56.0f, 46.0f, 0.36f);
-    drawPillEye(146, bannerY - 21, 4, 8, colWhite);
-    drawPillEye(162, bannerY - 21, 4, 8, colWhite);
-
-    canvas.fillArc(120 - splitX, bannerY + 18, 22, 4, 110, 250, colYellowLight);
-    canvas.fillArc(120 + splitX, bannerY + 18, 22, 4, 290, 70,  colYellowLight);
-
-    int bw = (int)(166.0f * openP);
-    if (bw > 24) drawLuckBanner(bannerY, bw);
-  } else {
-    // Pha 3: Pet nhảy tưng tưng NGAY TRÊN BĂNG RÔN NỀN VÀNG CHỮ TRẮNG!
-    float jumpPhase    = (el - 2.25f) * 8.2f;
-    float hopSin       = fabsf(sinf(jumpPhase));
-    float hopHeight    = hopSin * 28.0f;
-    float landingPress = (hopSin < 0.22f) ? (1.0f - hopSin / 0.22f) : 0.0f;
-
-    int bannerY = 148 + (int)(landingPress * 3.5f);
-
-    canvas.fillArc(120 - 87, bannerY + 18, 18, 3, 110, 250, colYellowLight);
-    canvas.fillArc(120 + 87, bannerY + 18, 18, 3, 290, 70,  colYellowLight);
-    drawLuckBanner(bannerY, 166);
-
-    // Pet nhảy chạm đúng mép trên băng rôn "Luck is Yours" có độ nhún đàn hồi
-    float petScale        = 0.46f;
-    float sx              = 1.0f + landingPress * 0.14f - hopSin * 0.05f;
-    float sy              = 1.0f - landingPress * 0.14f + hopSin * 0.06f;
-    float petBottomRadius = 46.0f * petScale * sy + 4.0f;
-    float petCy           = (float)bannerY - petBottomRadius - hopHeight;
-
-    drawMochiHead(120.0f, petCy, 64.0f * sx, 56.0f * sy, 46.0f * sy, petScale);
-
-    if (hopSin > 0.55f) {
-      drawUpwardArcEye(120.0f, petCy, -11.0f, 3.0f, 5.5f, 3.0f, 0.0f, colWhite);
-      drawUpwardArcEye(120.0f, petCy,  11.0f, 3.0f, 5.5f, 3.0f, 0.0f, colWhite);
-    } else {
-      drawPillEye(109, (int)petCy - 1, 5, (int)(10.0f * sy), colWhite);
-      drawPillEye(131, (int)petCy - 1, 5, (int)(10.0f * sy), colWhite);
+    if (openP > 0.55f) {
+      float peekPop = (openP - 0.55f) / 0.45f;
+      if (peekPop > 1.0f) peekPop = 1.0f;
+      float px = 148.0f;
+      float py = (float)scrollY - 12.0f + (1.0f - peekPop) * 14.0f;
+      drawMochiHead(px, py, 64.0f, 56.0f, 46.0f, 0.31f);
+      drawPillEye((int)px - 7, (int)py - 2, 4, 7, colWhite);
+      canvas.drawWideLine(px + 9, py - 5, px + 4, py - 1.5f, 2.4f, colWhite);
+      canvas.drawWideLine(px + 4, py - 1.5f, px + 9, py + 2, 2.4f, colWhite);
     }
 
-    drawSmallStar(62.0f,  86.0f - hopSin * 4.0f, 6.0f, colYellow);
-    drawSmallStar(178.0f, 92.0f - hopSin * 4.0f, 6.0f, colSkyBlue);
+    draw3DWavyScroll(scrollY, openP, pet.currentWish, 0.0f);
+
+    if (openP > 0.40f) {
+      float drift = sinf(t * 5.0f) * 1.5f;
+      drawTriangleCrumb(70.0f,  scrollY - 38.0f + drift, 6.5f,  0.25f, colYellowLight);
+      drawTriangleCrumb(56.0f,  scrollY + 26.0f - drift, 4.5f,  0.95f, colYellow);
+      drawTriangleCrumb(156.0f, scrollY + 31.0f + drift, 5.5f, -0.35f, colYellowLight);
+      drawTriangleCrumb(167.0f, scrollY + 32.0f - drift, 5.0f,  0.55f, colGoldDark);
+    }
+  } else {
+    // Pha 3: Pet nhảy ra và nhún tưng tưng ngay trên dải lụa 3D uốn lượn!
+    float settleP = (el - 2.55f) / 0.28f;
+    if (settleP > 1.0f) settleP = 1.0f;
+    float jumpPhase    = (el - 2.55f) * 8.2f;
+    float hopSin       = fabsf(sinf(jumpPhase));
+    float hopHeight    = hopSin * 26.0f;
+    float landingPress = (hopSin < 0.22f) ? (1.0f - hopSin / 0.22f) : 0.0f;
+
+    int scrollY = 128 + (int)(settleP * 24.0f + landingPress * 2.5f);
+    draw3DWavyScroll(scrollY, 1.0f, pet.currentWish, landingPress * 3.5f);
+
+    drawTriangleCrumb(66.0f,  88.0f - hopSin * 4.0f, 6.0f,  t * 2.0f, colYellowLight);
+    drawTriangleCrumb(176.0f, 92.0f - hopSin * 4.0f, 5.5f, -t * 2.0f, colSkyBlue);
+    drawTriangleCrumb(160.0f, scrollY + 30.0f,       4.8f,  0.4f,     colYellow);
+
+    float ribbonTopAtCenter = (float)scrollY + fortuneWaveOffset(0.52f, landingPress * 3.5f) - 16.5f;
+    float petScale   = 0.44f;
+    float sx         = 1.0f + landingPress * 0.14f - hopSin * 0.05f;
+    float sy         = 1.0f - landingPress * 0.14f + hopSin * 0.06f;
+    float petBottomR = 46.0f * petScale * sy + 3.0f;
+    float petCx      = 148.0f * (1.0f - settleP) + 120.0f * settleP;
+    float petCy      = ribbonTopAtCenter - petBottomR - hopHeight;
+
+    drawMochiHead(petCx, petCy, 64.0f * sx, 56.0f * sy, 46.0f * sy, petScale);
+
+    if (hopSin > 0.55f) {
+      drawUpwardArcEye(petCx, petCy, -10.0f, 3.0f, 5.2f, 3.0f, 0.0f, colWhite);
+      drawUpwardArcEye(petCx, petCy,  10.0f, 3.0f, 5.2f, 3.0f, 0.0f, colWhite);
+    } else {
+      drawPillEye((int)petCx - 10, (int)petCy - 1, 5, (int)(9.5f * sy), colWhite);
+      drawPillEye((int)petCx + 10, (int)petCy - 1, 5, (int)(9.5f * sy), colWhite);
+    }
   }
 }
 
@@ -912,6 +1006,9 @@ void setup() {
     canvas.setColorDepth(8);
     canvas.createSprite(240, 240);
   }
+  charSpr.setColorDepth(canvas.getColorDepth());
+  charSpr.createSprite(24, 28);
+  charSpr.setPivot(12, 14);
 
   lastFrameMs = millis();
   setPetMode(MODE_BOOT, 3.1f, true, true);

@@ -841,40 +841,168 @@
       }
     }
 
-    function drawGoldenWishBanner(bannerY, openP, wishText) {
-      const bw = 166 * openP;
-      if (bw <= 24) return;
-      const bx = 120 - bw / 2;
+    function fortuneWaveOffset(u, extraDip = 0) {
+      return -8.5 * Math.cos(u * Math.PI * 1.42) + (3.2 + extraDip) * Math.sin(u * Math.PI);
+    }
+
+    function draw3DWavyScroll(centerY, openP, wishText, extraDip = 0) {
+      const halfW = 70 * openP;
+      const xLeft = 118 - halfW;
+      const xRight = 118 + halfW;
+      const spanW = xRight - xLeft;
+      const ribbonH = 33;
+
       ctx.save();
-      const grad = ctx.createLinearGradient(120, bannerY, 120, bannerY + 36);
-      grad.addColorStop(0, '#f59e0b');
-      grad.addColorStop(0.5, '#eab308');
-      grad.addColorStop(1, '#d97706');
-      ctx.fillStyle = grad;
-      ctx.strokeStyle = '#fef08a';
-      ctx.lineWidth = 2.5;
-      ctx.shadowColor = 'rgba(250, 204, 21, 0.42)';
-      ctx.shadowBlur = 10;
+      const lx = xLeft;
+      const ly = centerY + fortuneWaveOffset(0, extraDip);
+      ctx.fillStyle = '#a16207';
       ctx.beginPath();
-      ctx.roundRect(bx, bannerY, bw, 36, 9);
+      ctx.moveTo(lx - 4, ly - 22);
+      ctx.lineTo(lx + 10, ly - 15);
+      ctx.lineTo(lx + 8, ly + 18);
+      ctx.lineTo(lx - 4, ly + 22);
+      ctx.closePath();
+      ctx.fill();
+
+      const lGrad = ctx.createLinearGradient(lx - 18, ly - 22, lx + 2, ly + 24);
+      lGrad.addColorStop(0, '#fef08a');
+      lGrad.addColorStop(0.5, '#facc15');
+      lGrad.addColorStop(1, '#eab308');
+      ctx.fillStyle = lGrad;
+      ctx.strokeStyle = '#ca8a04';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(lx - 17, ly - 21);
+      ctx.lineTo(lx - 2, ly - 22);
+      ctx.lineTo(lx - 1, ly + 19);
+      ctx.lineTo(lx - 17, ly + 24);
+      ctx.closePath();
       ctx.fill();
       ctx.stroke();
 
-      if (openP > 0.65) {
-        ctx.fillStyle = '#ffffff';
-        ctx.shadowColor = 'rgba(120, 53, 15, 0.75)';
-        ctx.shadowBlur = 3;
-        ctx.shadowOffsetY = 1;
-        ctx.font = '700 16.5px system-ui, sans-serif';
-        ctx.textAlign = 'center';
+      const rx = xRight;
+      const ry = centerY + fortuneWaveOffset(1, extraDip);
+      ctx.fillStyle = '#a16207';
+      ctx.beginPath();
+      ctx.moveTo(rx - 8, ry - 20);
+      ctx.lineTo(rx + 6, ry - 25);
+      ctx.lineTo(rx + 6, ry + 20);
+      ctx.lineTo(rx - 8, ry + 16);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.fillStyle = '#eab308';
+      ctx.beginPath();
+      ctx.moveTo(rx - 3, ry - 24);
+      ctx.lineTo(rx + 6, ry - 20);
+      ctx.lineTo(rx + 6, ry + 25);
+      ctx.lineTo(rx - 3, ry + 19);
+      ctx.closePath();
+      ctx.fill();
+
+      const rGrad = ctx.createLinearGradient(rx + 5, ry - 24, rx + 24, ry + 24);
+      rGrad.addColorStop(0, '#fef08a');
+      rGrad.addColorStop(0.55, '#fde047');
+      rGrad.addColorStop(1, '#eab308');
+      ctx.fillStyle = rGrad;
+      ctx.strokeStyle = '#ca8a04';
+      ctx.beginPath();
+      ctx.moveTo(rx + 5, ry - 23);
+      ctx.lineTo(rx + 23, ry - 16);
+      ctx.lineTo(rx + 22, ry + 23);
+      ctx.lineTo(rx + 5, ry + 26);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.restore();
+
+      if (spanW < 24) return;
+
+      ctx.save();
+      const steps = 32;
+      ctx.beginPath();
+      for (let i = 0; i <= steps; i++) {
+        const u = i / steps;
+        const px = xLeft + u * spanW;
+        const py = centerY + fortuneWaveOffset(u, extraDip) - ribbonH / 2;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      for (let i = steps; i >= 0; i--) {
+        const u = i / steps;
+        const px = xLeft + u * spanW;
+        const py = centerY + fortuneWaveOffset(u, extraDip) + ribbonH / 2;
+        ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+
+      const ribGrad = ctx.createLinearGradient(xLeft, centerY, xRight, centerY);
+      ribGrad.addColorStop(0.0, '#ffffff');
+      ribGrad.addColorStop(0.28, '#e0f2fe');
+      ribGrad.addColorStop(0.58, '#93c5fd');
+      ribGrad.addColorStop(0.82, '#dbeafe');
+      ribGrad.addColorStop(1.0, '#f8fafc');
+      ctx.fillStyle = ribGrad;
+      ctx.shadowColor = 'rgba(56, 189, 248, 0.28)';
+      ctx.shadowBlur = 8;
+      ctx.fill();
+
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#60a5fa';
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+
+      if (openP > 0.68 && wishText) {
+        ctx.font = '800 16px system-ui, -apple-system, sans-serif';
+        ctx.fillStyle = '#0f172a';
         ctx.textBaseline = 'middle';
-        ctx.fillText(wishText, 120, bannerY + 19);
+        ctx.textAlign = 'center';
+
+        const chars = Array.from(wishText);
+        const widths = chars.map(ch => ctx.measureText(ch).width);
+        const tracking = 0.6;
+        const totalTextW = widths.reduce((a, b) => a + b, 0) + tracking * (chars.length - 1);
+
+        let cursorX = (xLeft + xRight) / 2 - totalTextW / 2;
+        for (let i = 0; i < chars.length; i++) {
+          const cw = widths[i];
+          const charX = cursorX + cw / 2;
+          const u = Math.max(0.03, Math.min(0.97, (charX - xLeft) / spanW));
+          const charY = centerY + fortuneWaveOffset(u, extraDip) + 1;
+
+          const du = 0.025;
+          const dy = fortuneWaveOffset(Math.min(1, u + du), extraDip) - fortuneWaveOffset(Math.max(0, u - du), extraDip);
+          const dx = 2 * du * spanW;
+          const angle = Math.atan2(dy, dx);
+
+          ctx.save();
+          ctx.translate(charX, charY);
+          ctx.rotate(angle);
+          ctx.fillText(chars[i], 0, 0);
+          ctx.restore();
+
+          cursorX += cw + tracking;
+        }
       }
       ctx.restore();
     }
 
+    function drawTriangleCrumb(cx, cy, size, rot, color = '#fde047') {
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(rot);
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.moveTo(0, -size);
+      ctx.lineTo(size * 0.85, size * 0.75);
+      ctx.lineTo(-size * 0.85, size * 0.75);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
     function drawFortuneScene(el, t) {
-      if (el < 1.10) {
+      if (el < 1.05) {
         const shakeAngle = Math.sin(t * 36) * 0.18;
         ctx.save();
         ctx.translate(120, 128);
@@ -910,83 +1038,77 @@
         ctx.closePath();
         ctx.fill();
         ctx.restore();
-      } else if (el < 2.25) {
-        const openP = Math.min(1, (el - 1.10) / 0.35);
-        const splitX = 22 + openP * 64;
-        const bannerY = 122 + openP * 24;
+      } else if (el < 2.55) {
+        const openP = Math.min(1, (el - 1.05) / 0.35);
+        const scrollY = 128;
 
-        strokeNeonMochiHead(154, bannerY - 20, 64, 56, 46, 0.36);
-        ctx.fillStyle = '#ffffff';
-        fillPill(146, bannerY - 21, 4.5, 8);
-        fillPill(162, bannerY - 21, 4.5, 8);
-
-        [-1, 1].forEach(dir => {
-          ctx.save();
-          ctx.translate(120 + dir * splitX, bannerY + 18);
-          ctx.fillStyle = '#fde047';
-          ctx.strokeStyle = '#a16207';
-          ctx.lineWidth = 2.5;
+        if (openP > 0.55) {
+          const peekPop = Math.min(1, (openP - 0.55) / 0.45);
+          const px = 148;
+          const py = scrollY - 12 + (1 - peekPop) * 14;
+          strokeNeonMochiHead(px, py, 64, 56, 46, 0.31);
+          ctx.fillStyle = '#ffffff';
+          fillPill(px - 7, py - 2, 4, 6.5);
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 2.4;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
           ctx.beginPath();
-          ctx.arc(0, 0, 22, dir < 0 ? Math.PI * 0.55 : -Math.PI * 0.45, dir < 0 ? Math.PI * 1.45 : Math.PI * 0.45);
-          ctx.lineTo(0, 16);
-          ctx.closePath();
-          ctx.fill();
+          ctx.moveTo(px + 9, py - 5);
+          ctx.lineTo(px + 4, py - 1.5);
+          ctx.lineTo(px + 9, py + 2);
           ctx.stroke();
-          ctx.restore();
-        });
+        }
 
-        drawGoldenWishBanner(bannerY, openP, state.currentWish);
+        draw3DWavyScroll(scrollY, openP, state.currentWish, 0);
+
+        if (openP > 0.4) {
+          const drift = Math.sin(t * 5) * 1.5;
+          drawTriangleCrumb(70, scrollY - 38 + drift, 6.5, 0.25, '#fde047');
+          drawTriangleCrumb(56, scrollY + 26 - drift, 4.5, 0.95, '#facc15');
+          drawTriangleCrumb(156, scrollY + 31 + drift, 5.5, -0.35, '#fde047');
+          drawTriangleCrumb(167, scrollY + 32 - drift, 5.0, 0.55, '#eab308');
+        }
       } else {
-        const jumpPhase = (el - 2.25) * 8.2;
+        const settleP = Math.min(1, (el - 2.55) / 0.28);
+        const jumpPhase = (el - 2.55) * 8.2;
         const hopSin = Math.abs(Math.sin(jumpPhase));
-        const hopHeight = hopSin * 28;
+        const hopHeight = hopSin * 26;
 
         const landingPress = hopSin < 0.22 ? (1 - hopSin / 0.22) : 0;
-        const bannerDip = landingPress * 3.5;
-        const bannerY = 148 + bannerDip;
+        const scrollY = 128 + settleP * 24 + landingPress * 2.5;
 
-        [-1, 1].forEach(dir => {
-          ctx.save();
-          ctx.translate(120 + dir * 87, bannerY + 18);
-          ctx.fillStyle = '#fde047';
-          ctx.strokeStyle = '#a16207';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.arc(0, 0, 18, dir < 0 ? Math.PI * 0.55 : -Math.PI * 0.45, dir < 0 ? Math.PI * 1.45 : Math.PI * 0.45);
-          ctx.closePath();
-          ctx.fill();
-          ctx.stroke();
-          ctx.restore();
-        });
+        draw3DWavyScroll(scrollY, 1.0, state.currentWish, landingPress * 3.5);
 
-        drawGoldenWishBanner(bannerY, 1.0, state.currentWish);
+        drawTriangleCrumb(66, 88 - hopSin * 4, 6, t * 2, '#fde047');
+        drawTriangleCrumb(176, 92 - hopSin * 4, 5.5, -t * 2, '#38bdf8');
+        drawTriangleCrumb(160, scrollY + 30, 4.8, 0.4, '#facc15');
 
-        const petScale = 0.46;
+        const ribbonTopAtCenter = scrollY + fortuneWaveOffset(0.52, landingPress * 3.5) - 16.5;
+        const petScale = 0.44;
         const sx = 1 + landingPress * 0.14 - hopSin * 0.05;
         const sy = 1 - landingPress * 0.14 + hopSin * 0.06;
-        const petBottomRadius = 46 * petScale * sy + 4;
-        const petCy = bannerY - petBottomRadius - hopHeight;
+        const petBottomR = 46 * petScale * sy + 3;
+        const petCx = 148 * (1 - settleP) + 120 * settleP;
+        const petCy = ribbonTopAtCenter - petBottomR - hopHeight;
 
-        strokeNeonMochiHead(120, petCy, 64 * sx, 56 * sy, 46 * sy, petScale);
+        strokeNeonMochiHead(petCx, petCy, 64 * sx, 56 * sy, 46 * sy, petScale);
 
         if (hopSin > 0.55) {
           ctx.strokeStyle = '#ffffff';
           ctx.lineWidth = 3.2;
           ctx.lineCap = 'round';
           ctx.beginPath();
-          ctx.arc(109, petCy + 1, 5.5, Math.PI * 1.15, Math.PI * 1.85);
+          ctx.arc(petCx - 10, petCy + 1, 5.2, Math.PI * 1.15, Math.PI * 1.85);
           ctx.stroke();
           ctx.beginPath();
-          ctx.arc(131, petCy + 1, 5.5, Math.PI * 1.15, Math.PI * 1.85);
+          ctx.arc(petCx + 10, petCy + 1, 5.2, Math.PI * 1.15, Math.PI * 1.85);
           ctx.stroke();
         } else {
           ctx.fillStyle = '#ffffff';
-          fillPill(109, petCy - 1, 5.5, 10 * sy);
-          fillPill(131, petCy - 1, 5.5, 10 * sy);
+          fillPill(petCx - 10, petCy - 1, 5, 9.5 * sy);
+          fillPill(petCx + 10, petCy - 1, 5, 9.5 * sy);
         }
-
-        drawStar(62, 86 - hopSin * 4, 4, 7, 2.5, '#facc15');
-        drawStar(178, 92 - hopSin * 4, 4, 7, 2.5, '#38bdf8');
       }
     }
 
