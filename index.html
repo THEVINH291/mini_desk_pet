@@ -243,11 +243,12 @@
         <button class="mode-btn" data-mode="melt">🫠 Đỏ mặt &rarr; Tan chảy bốc hơi</button>
         <button class="mode-btn" data-mode="bubble">🫧 Hóa bong bóng bay lên</button>
         <button class="mode-btn" data-mode="mindblown">🤯 Quá tải &rarr; Nổ tung não!</button>
+        <button class="mode-btn" data-mode="birthday">🎂 Chúc mừng Sinh nhật (Nhạc)</button>
         <button class="mode-btn" data-mode="dizzy">😵 Bị choáng (Giữ &gt;0.5s)</button>
         <button class="mode-btn" data-mode="baseball">⚾ Đánh bóng chày (Mũ vàng)</button>
         <button class="mode-btn" data-mode="fortune">🥠 Nhảy trên chữ Luck is Yours</button>
         <button class="mode-btn" data-mode="humming">🎵 Ngân nga nốt nhạc (♫)</button>
-        <button class="mode-btn" data-mode="sleep_toggle">😴 Tự ngủ tắt màn / Đánh thức</button>
+        <button class="mode-btn" data-mode="sleep_toggle" style="grid-column: span 2; justify-content: center;">😴 Tự ngủ tắt màn / Đánh thức</button>
       </div>
 
       <div class="options">
@@ -278,7 +279,7 @@
     const modeButtons = document.querySelectorAll('.mode-btn');
 
     const TAP_SEQUENCE = ['wink', 'angry', 'happy', 'mindblown', 'bubble', 'idle', 'freeze', 'melt', 'wink', 'happy'];
-    const IDLE_STORIES = ['baseball', 'fortune', 'freeze', 'melt', 'bubble', 'mindblown', 'humming'];
+    const IDLE_STORIES = ['baseball', 'fortune', 'freeze', 'melt', 'bubble', 'mindblown', 'birthday', 'humming'];
     const LUCKY_WISHES = [
       'Luck is Yours',
       'Stay Happy :)',
@@ -448,6 +449,24 @@
           osc.frequency.exponentialRampToValueAtTime(48, now + 0.32);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.36);
           osc.start(now); osc.stop(now + 0.36);
+        } else if (type === 'birthday') {
+          gain.disconnect();
+          const notes = [
+            [392, 0.00, 0.18], [392, 0.22, 0.18], [440, 0.44, 0.32], [392, 0.80, 0.32], [523, 1.16, 0.32], [494, 1.52, 0.52],
+            [392, 2.15, 0.18], [392, 2.37, 0.18], [440, 2.59, 0.32], [392, 2.95, 0.32], [587, 3.31, 0.32], [523, 3.67, 0.58]
+          ];
+          notes.forEach(([freq, startOff, dur]) => {
+            const o = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            o.type = 'triangle';
+            o.frequency.setValueAtTime(freq, now + startOff);
+            g.gain.setValueAtTime(0.07, now + startOff);
+            g.gain.exponentialRampToValueAtTime(0.001, now + startOff + dur);
+            o.connect(g);
+            g.connect(audioCtx.destination);
+            o.start(now + startOff);
+            o.stop(now + startOff + dur + 0.02);
+          });
         } else if (type === 'wink') {
           osc.type = 'sine';
           osc.frequency.setValueAtTime(880, now);
@@ -481,7 +500,7 @@
       const labels = {
         boot: 'HI!', idle: 'IDLE', wink: 'WINK', angry: 'ANGRY',
         happy: 'HAPPY', melt: 'MELTING', freeze: 'FROZEN', bubble: 'BUBBLE',
-        mindblown: 'MIND BLOWN!', dizzy: 'DIZZY', baseball: 'BASEBALL',
+        mindblown: 'MIND BLOWN!', birthday: 'BIRTHDAY!', dizzy: 'DIZZY', baseball: 'BASEBALL',
         fortune: 'LUCK', humming: 'MUSIC',
         fall_asleep: 'SLEEPING..', sleep: 'OFF (NGỦ)', wakeup: 'WAKE UP!'
       };
@@ -578,6 +597,7 @@
       else if (e.code === 'KeyF') { setMode('freeze', 5.0, true, true); }
       else if (e.code === 'KeyU') { setMode('bubble', 4.6, true, true); }
       else if (e.code === 'KeyX') { setMode('mindblown', 4.8, true, true); }
+      else if (e.code === 'KeyP') { setMode('birthday', 6.2, true, true); }
       else if (e.code === 'KeyB') { setMode('baseball', 3.9, true, true); }
       else if (e.code === 'KeyS') {
         if (state.mode === 'sleep' || state.mode === 'fall_asleep') setMode('wakeup', 3.15, true, true);
@@ -593,7 +613,7 @@
           else setMode('fall_asleep', 2.5, true, false);
           return;
         }
-        const dur = (m === 'idle') ? 999 : (m === 'fortune' ? 4.3 : (m === 'baseball' || m === 'humming' ? 3.9 : ((m === 'melt' || m === 'freeze') ? 5.0 : (m === 'mindblown' ? 4.8 : (m === 'bubble' ? 4.6 : 3.1)))));
+        const dur = (m === 'idle') ? 999 : (m === 'birthday' ? 6.2 : (m === 'fortune' ? 4.3 : (m === 'baseball' || m === 'humming' ? 3.9 : ((m === 'melt' || m === 'freeze') ? 5.0 : (m === 'mindblown' ? 4.8 : (m === 'bubble' ? 4.6 : 3.1))))));
         setMode(m, dur, true, true);
       });
     });
@@ -2197,6 +2217,225 @@
       }
     }
 
+    function drawBirthdayScene(el, t) {
+      if (el >= 5.55) {
+        const rp = Math.min(1, (el - 5.55) / 0.60);
+        const sc = 0.58 + 0.42 * rp;
+        const cy = 108 * (1 - rp) + 122 * rp;
+        strokeNeonMochiHead(120, cy, 64, 56, 46, sc);
+        ctx.fillStyle = '#ffffff';
+        fillPill(120 - 24 * sc, cy - 2, 13 * sc, 24 * sc);
+        fillPill(120 + 24 * sc, cy - 2, 13 * sc, 24 * sc);
+        return;
+      }
+
+      const candleBlownOut = el >= 3.25;
+      const isBlowing = el >= 2.75 && el < 3.35;
+      const cheerHop = candleBlownOut ? Math.abs(Math.sin((el - 3.25) * 8.5)) * 9 : 0;
+      const swayX = !isBlowing ? Math.sin(t * 5.2) * 5 : 0;
+
+      const confColors = ['#f472b6', '#facc15', '#38bdf8', '#4ade80', '#c084fc'];
+      for (let i = 0; i < 12; i++) {
+        const cp = ((el * 0.45) + i * 0.13) % 1;
+        const kx = 18 + ((i * 21) % 204) + Math.sin(cp * 7 + i) * 9;
+        const ky = 10 + cp * 218;
+        drawTriangleCrumb(kx, ky, 4.5, t * 4 + i, confColors[i % 5]);
+      }
+
+      ctx.save();
+      const titleBob = Math.sin(t * 6) * 2;
+      ctx.font = '800 18px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor = '#f43f5e';
+      ctx.shadowBlur = 10;
+      ctx.fillStyle = '#fde047';
+      ctx.fillText('HAPPY BIRTHDAY!', 120, 26 + titleBob);
+      ctx.restore();
+
+      if (candleBlownOut) {
+        const fwTime = el - 3.25;
+        [[52, 68, 0.0, '#f472b6'], [188, 64, 0.45, '#fde047'], [64, 92, 0.95, '#38bdf8']].forEach(([fx, fy, delayS, col]) => {
+          const local = (fwTime - delayS) % 1.35;
+          if (fwTime >= delayS && local < 0.85) {
+            const fp = local / 0.85;
+            ctx.save();
+            ctx.globalAlpha = 1 - fp;
+            ctx.fillStyle = col;
+            for (let k = 0; k < 10; k++) {
+              const a = (k / 10) * Math.PI * 2;
+              const dist = 6 + fp * 28;
+              ctx.beginPath();
+              ctx.arc(fx + Math.cos(a) * dist, fy + Math.sin(a) * dist, 2.4 * (1 - fp * 0.5), 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.restore();
+          }
+        });
+      }
+
+      const petCx = 120 + swayX;
+      const petCy = 106 - cheerHop + (isBlowing ? 4 : 0);
+      const petSc = 0.56;
+
+      strokeNeonMochiHead(petCx, petCy, 64, 56, 46, petSc);
+
+      ctx.save();
+      const hatBaseY = petCy - 29;
+      ctx.fillStyle = '#ec4899';
+      ctx.strokeStyle = '#fde047';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(petCx - 16, hatBaseY);
+      ctx.lineTo(petCx + 16, hatBaseY);
+      ctx.lineTo(petCx, hatBaseY - 30);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.strokeStyle = '#fef08a';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(petCx - 9, hatBaseY - 6);
+      ctx.lineTo(petCx + 7, hatBaseY - 14);
+      ctx.stroke();
+
+      ctx.fillStyle = '#fef08a';
+      ctx.beginPath();
+      ctx.arc(petCx, hatBaseY - 32, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.fillStyle = '#ffffff';
+      ctx.lineCap = 'round';
+      if (isBlowing) {
+        ctx.lineWidth = 3.4;
+        ctx.beginPath();
+        ctx.moveTo(petCx - 18, petCy - 4); ctx.lineTo(petCx - 10, petCy); ctx.lineTo(petCx - 18, petCy + 4);
+        ctx.moveTo(petCx + 18, petCy - 4); ctx.lineTo(petCx + 10, petCy); ctx.lineTo(petCx + 18, petCy + 4);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(petCx, petCy + 11, 3.8, 0, Math.PI * 2);
+        ctx.fill();
+
+        const blowP = (el - 2.75) / 0.60;
+        ctx.strokeStyle = 'rgba(186, 230, 253, 0.85)';
+        ctx.lineWidth = 2.2;
+        [-6, 0, 6].forEach((dx, idx) => {
+          ctx.beginPath();
+          ctx.moveTo(petCx + dx * 0.4, petCy + 16);
+          ctx.lineTo(petCx + dx * 1.6, petCy + 20 + blowP * 16 + (idx === 1 ? 4 : 0));
+          ctx.stroke();
+        });
+      } else {
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.arc(petCx - 14, petCy + 1, 6.8, Math.PI * 1.15, Math.PI * 1.85);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(petCx + 14, petCy + 1, 6.8, Math.PI * 1.15, Math.PI * 1.85);
+        ctx.stroke();
+        if (candleBlownOut) {
+          ctx.beginPath();
+          ctx.arc(petCx, petCy + 6, 8, Math.PI * 0.15, Math.PI * 0.85);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+
+      ctx.save();
+      const cakeY = 166;
+      const cakeW = 98;
+      const cakeH = 34;
+      const cakeX = 120 - cakeW / 2;
+
+      ctx.fillStyle = '#e2e8f0';
+      ctx.beginPath();
+      ctx.ellipse(120, cakeY + cakeH + 1, 60, 6.5, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = '#fb7185';
+      ctx.strokeStyle = '#f43f5e';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(cakeX, cakeY, cakeW, cakeH, 8);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = '#fef3c7';
+      ctx.fillRect(cakeX + 2, cakeY + 17, cakeW - 4, 5);
+
+      ctx.fillStyle = '#fffbeb';
+      ctx.beginPath();
+      ctx.roundRect(cakeX - 1, cakeY - 2, cakeW + 2, 12, 6);
+      ctx.fill();
+      for (let i = 0; i < 6; i++) {
+        ctx.beginPath();
+        ctx.arc(cakeX + 9 + i * 16, cakeY + 9, 6.5, 0, Math.PI);
+        ctx.fill();
+      }
+
+      const candleX = 120;
+      const candleTopY = cakeY - 20;
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 1.5;
+      ctx.fillRect(candleX - 4, candleTopY, 8, 19);
+      ctx.strokeRect(candleX - 4, candleTopY, 8, 19);
+      ctx.strokeStyle = '#f43f5e';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(candleX - 4, candleTopY + 6);  ctx.lineTo(candleX + 4, candleTopY + 3);
+      ctx.moveTo(candleX - 4, candleTopY + 14); ctx.lineTo(candleX + 4, candleTopY + 11);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#94a3b8';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(candleX, candleTopY);
+      ctx.lineTo(candleX, candleTopY - 4);
+      ctx.stroke();
+
+      if (!candleBlownOut) {
+        const flicker = isBlowing ? Math.sin(t * 50) * 5 : Math.sin(t * 18) * 1.8;
+        const leanY = isBlowing ? 4 : 0;
+        const fx = candleX + flicker;
+        const fy = candleTopY - 12 + leanY;
+
+        ctx.fillStyle = 'rgba(251, 146, 60, 0.35)';
+        ctx.beginPath();
+        ctx.arc(fx, fy, 13, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#f97316';
+        ctx.beginPath();
+        ctx.moveTo(candleX, candleTopY - 3);
+        ctx.quadraticCurveTo(fx - 7, fy + 2, fx, fy - 9);
+        ctx.quadraticCurveTo(fx + 7, fy + 2, candleX, candleTopY - 3);
+        ctx.fill();
+
+        ctx.fillStyle = '#fef08a';
+        ctx.beginPath();
+        ctx.arc(fx, fy, 3.2, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        const smP = Math.min(1, (el - 3.25) / 1.4);
+        if (smP < 1) {
+          ctx.globalAlpha = 1 - smP;
+          ctx.strokeStyle = '#cbd5e1';
+          ctx.lineWidth = 2.2;
+          ctx.lineCap = 'round';
+          const sy = candleTopY - 5 - smP * 22;
+          ctx.beginPath();
+          ctx.moveTo(candleX, sy + 10);
+          ctx.quadraticCurveTo(candleX - 6, sy + 4, candleX + 4, sy - 2);
+          ctx.quadraticCurveTo(candleX + 8, sy - 7, candleX - 2, sy - 12);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+    }
+
     function drawMainPetFace(t) {
       const holdPress = state.holding ? Math.min(1, state.holdDuration / HOLD_DIZZY_SEC) : 0;
       const shakeX = holdPress > 0.15 ? Math.sin(t * 45) * (holdPress * 4) : 0;
@@ -2327,7 +2566,7 @@
           } else if (state.idleCountdown <= 0) {
             const nextStory = IDLE_STORIES[storyIndex % IDLE_STORIES.length];
             storyIndex++;
-            const dur = (nextStory === 'melt' || nextStory === 'freeze') ? 5.0 : (nextStory === 'mindblown' ? 4.8 : (nextStory === 'bubble' ? 4.6 : (nextStory === 'fortune' ? 4.3 : 3.9)));
+            const dur = nextStory === 'birthday' ? 6.2 : ((nextStory === 'melt' || nextStory === 'freeze') ? 5.0 : (nextStory === 'mindblown' ? 4.8 : (nextStory === 'bubble' ? 4.6 : (nextStory === 'fortune' ? 4.3 : 3.9))));
             setMode(nextStory, dur, true, false);
           }
         } else {
@@ -2383,6 +2622,7 @@
       else if (state.mode === 'freeze') drawFreezeScene(state.animElapsed, t);
       else if (state.mode === 'bubble') drawBubbleScene(state.animElapsed, t);
       else if (state.mode === 'mindblown') drawMindBlownScene(state.animElapsed, t);
+      else if (state.mode === 'birthday') drawBirthdayScene(state.animElapsed, t);
       else if (state.mode === 'dizzy') drawDizzyScene(t);
       else if (state.mode === 'baseball') drawBaseballScene(state.animElapsed, t);
       else if (state.mode === 'fortune') drawFortuneScene(state.animElapsed, t);

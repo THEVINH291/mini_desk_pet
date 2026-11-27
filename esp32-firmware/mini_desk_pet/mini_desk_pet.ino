@@ -103,6 +103,7 @@ enum PetMode {
   MODE_FREEZE,       // Lạnh run cầm cập -> Đóng tảng băng -> Phá băng vỡ tung (🥶)
   MODE_BUBBLE,       // Phồng tròn hóa thành bong bóng ngũ sắc rồi bay bổng lên trời (🫧)
   MODE_MINDBLOWN,    // Quá tải phồng đầu -> Nổ tung đám mây hình nấm (🤯)
+  MODE_BIRTHDAY,     // Đội mũ sinh nhật + Bánh kem thổi nến + Nhạc Happy Birthday (🎂)
   MODE_DIZZY,        // Choáng váng khi giữ lâu (@ @ + sao quay quanh đầu)
   MODE_BASEBALL,     // Hoạt ảnh 15s #1: Đội mũ vàng đánh bóng chày Home Run
   MODE_FORTUNE,      // Hoạt ảnh 15s #2: Nhảy trên dòng chữ "Luck is Yours"
@@ -119,7 +120,8 @@ const PetMode TAP_SEQUENCE[] = {
 const int TAP_SEQ_LEN = sizeof(TAP_SEQUENCE) / sizeof(TAP_SEQUENCE[0]);
 
 const PetMode IDLE_STORIES[] = {
-  MODE_BASEBALL, MODE_FORTUNE, MODE_FREEZE, MODE_MELT, MODE_BUBBLE, MODE_MINDBLOWN, MODE_HUMMING
+  MODE_BASEBALL, MODE_FORTUNE, MODE_FREEZE, MODE_MELT,
+  MODE_BUBBLE, MODE_MINDBLOWN, MODE_BIRTHDAY, MODE_HUMMING
 };
 const int IDLE_STORY_LEN = sizeof(IDLE_STORIES) / sizeof(IDLE_STORIES[0]);
 
@@ -173,6 +175,7 @@ struct PetState {
   bool    iceLockPlayed        = false;
   bool    shatterPlayed        = false;
   bool    boomPlayed           = false;
+  int     bdayNoteIdx          = 0;
   const char* currentWish      = "Luck is Yours";
 } pet;
 
@@ -260,6 +263,9 @@ void playChirp(PetMode m) {
       tone(PIN_BUZZER, 980, 45);  delay(45);
       tone(PIN_BUZZER, 1520, 65);
       break;
+    case MODE_BIRTHDAY:
+      // Giai điệu Happy Birthday được phát không chặn (non-blocking) ngay trong drawBirthdayScene!
+      break;
     case MODE_WINK:
       tone(PIN_BUZZER, 880, 45); delay(45);
       tone(PIN_BUZZER, 1480, 55);
@@ -300,6 +306,7 @@ void setPetMode(PetMode newMode, float durationSec = 3.0f, bool sound = true, bo
   pet.iceLockPlayed = false;
   pet.shatterPlayed = false;
   pet.boomPlayed    = false;
+  pet.bdayNoteIdx   = 0;
   if (sound) playChirp(newMode);
 }
 
@@ -1505,6 +1512,172 @@ void drawMindBlownScene(float el, float t) {
   }
 }
 
+// ======================= 6.9 CHÚC MỪNG SINH NHẬT (🎂 BÁNH KEM THỔI NẾN + NHẠC HAPPY BIRTHDAY) =======================
+struct BdayNote {
+  float    timeSec;
+  uint16_t freqHz;
+  uint16_t durMs;
+};
+
+const BdayNote BDAY_MELODY[] = {
+  {0.00f, 392, 170}, {0.22f, 392, 170}, {0.44f, 440, 300}, {0.80f, 392, 300}, {1.16f, 523, 300}, {1.52f, 494, 480},
+  {2.15f, 392, 170}, {2.37f, 392, 170}, {2.59f, 440, 300}, {2.95f, 392, 300}, {3.31f, 587, 300}, {3.67f, 523, 520}
+};
+const int BDAY_MELODY_LEN = sizeof(BDAY_MELODY) / sizeof(BDAY_MELODY[0]);
+
+void drawBirthdayScene(float el, float t) {
+  // Phát nhạc "Happy Birthday to You" theo thời gian thực mượt 60 FPS (không dùng delay!)
+  if (ENABLE_SOUND && PIN_BUZZER >= 0 && pet.bdayNoteIdx < BDAY_MELODY_LEN) {
+    if (el >= BDAY_MELODY[pet.bdayNoteIdx].timeSec) {
+      tone(PIN_BUZZER, BDAY_MELODY[pet.bdayNoteIdx].freqHz, BDAY_MELODY[pet.bdayNoteIdx].durMs);
+      pet.bdayNoteIdx++;
+    }
+  }
+
+  // Pha cuối (5.55 -> 6.20s): Trở lại giữa màn hình mượt mà
+  if (el >= 5.55f) {
+    float rp = (el - 5.55f) / 0.60f;
+    if (rp > 1.0f) rp = 1.0f;
+    float sc = 0.58f + 0.42f * rp;
+    float cy = 108.0f * (1.0f - rp) + 122.0f * rp;
+    drawMochiHead(120.0f, cy, 64.0f, 56.0f, 46.0f, sc);
+    drawPillEye(120 - (int)(24.0f * sc), (int)cy - 2, (int)(13.0f * sc), (int)(24.0f * sc), colWhite);
+    drawPillEye(120 + (int)(24.0f * sc), (int)cy - 2, (int)(13.0f * sc), (int)(24.0f * sc), colWhite);
+    return;
+  }
+
+  uint16_t colCakePink  = tft.color565(251, 113, 133);
+  uint16_t colPartyHat  = tft.color565(236, 72, 153);
+  uint16_t colCream     = tft.color565(255, 251, 235);
+  uint16_t colOrange    = tft.color565(249, 115, 22);
+  uint16_t colMint      = tft.color565(74, 222, 128);
+  uint16_t colPlate     = tft.color565(226, 232, 240);
+
+  bool  candleBlownOut = (el >= 3.25f);
+  bool  isBlowing      = (el >= 2.75f && el < 3.35f);
+  float cheerHop       = candleBlownOut ? (fabsf(sinf((el - 3.25f) * 8.5f)) * 9.0f) : 0.0f;
+  float swayX          = !isBlowing ? (sinf(t * 5.2f) * 5.0f) : 0.0f;
+
+  // 1) Pháo giấy tam giác nhiều màu rơi tưng bừng!
+  const uint16_t confCols[4] = {colPartyHat, colYellow, colSleepBlue, colMint};
+  for (int i = 0; i < 10; i++) {
+    float cp = fmodf(el * 0.45f + i * 0.13f, 1.0f);
+    float kx = 18.0f + ((i * 23) % 204) + sinf(cp * 7.0f + i) * 8.0f;
+    float ky = 10.0f + cp * 218.0f;
+    drawTriangleCrumb(kx, ky, 4.5f, t * 4.0f + i, confCols[i % 4]);
+  }
+
+  // 2) Dòng chữ "HAPPY BIRTHDAY!" vàng rực rỡ phía trên!
+  int titleBob = (int)(sinf(t * 6.0f) * 2.0f);
+  canvas.setFont(&fonts::FreeSansBold9pt7b);
+  int tw = canvas.textWidth("HAPPY BIRTHDAY!");
+  canvas.setTextColor(colPartyHat);
+  canvas.setCursor(120 - tw / 2 + 1, 17 + titleBob);
+  canvas.print("HAPPY BIRTHDAY!");
+  canvas.setTextColor(colYellowLight);
+  canvas.setCursor(120 - tw / 2, 16 + titleBob);
+  canvas.print("HAPPY BIRTHDAY!");
+
+  // 3) Pháo hoa chúc mừng nổ rực rỡ sau khi thổi tắt nến!
+  if (candleBlownOut) {
+    float fwTime = el - 3.25f;
+    const int fwPos[3][2]     = {{50, 68}, {190, 64}, {62, 92}};
+    const float fwDelay[3]    = {0.0f, 0.45f, 0.95f};
+    const uint16_t fwCols[3]  = {colPartyHat, colYellowLight, colSleepBlue};
+    for (int f = 0; f < 3; f++) {
+      if (fwTime >= fwDelay[f]) {
+        float local = fmodf(fwTime - fwDelay[f], 1.35f);
+        if (local < 0.85f) {
+          float fp = local / 0.85f;
+          for (int k = 0; k < 8; k++) {
+            float a    = (k * 2.0f * 3.14159f) / 8.0f;
+            float dist = 6.0f + fp * 26.0f;
+            canvas.fillSmoothCircle(fwPos[f][0] + (int)(cosf(a) * dist),
+                                    fwPos[f][1] + (int)(sinf(a) * dist), 2, fwCols[f]);
+          }
+        }
+      }
+    }
+  }
+
+  // 4) Bé Pet đội mũ chóp sinh nhật (🥳) đung đưa phía sau bánh kem!
+  float petCx = 120.0f + swayX;
+  float petCy = 106.0f - cheerHop + (isBlowing ? 4.0f : 0.0f);
+  float petSc = 0.56f;
+
+  drawMochiHead(petCx, petCy, 64.0f, 56.0f, 46.0f, petSc);
+
+  int hatBaseY = (int)petCy - 29;
+  int pcx      = (int)petCx;
+  canvas.fillTriangle(pcx - 16, hatBaseY, pcx + 16, hatBaseY, pcx, hatBaseY - 30, colPartyHat);
+  canvas.drawWideLine(pcx - 9, hatBaseY - 6, pcx + 7, hatBaseY - 14, 2.8f, colYellowLight);
+  canvas.fillSmoothCircle(pcx, hatBaseY - 32, 5, colYellowLight);
+
+  if (isBlowing) {
+    // Nheo mắt > < chu miệng thổi hơi tắt nến!
+    canvas.drawWideLine(petCx - 18, petCy - 4, petCx - 10, petCy,     3.2f, colWhite);
+    canvas.drawWideLine(petCx - 10, petCy,     petCx - 18, petCy + 4, 3.2f, colWhite);
+    canvas.drawWideLine(petCx + 18, petCy - 4, petCx + 10, petCy,     3.2f, colWhite);
+    canvas.drawWideLine(petCx + 10, petCy,     petCx + 18, petCy + 4, 3.2f, colWhite);
+    canvas.fillSmoothCircle(pcx, (int)petCy + 11, 4, colWhite);
+
+    float blowP = (el - 2.75f) / 0.60f;
+    canvas.drawWideLine(petCx - 3, petCy + 16, petCx - 10, petCy + 20 + blowP * 16.0f, 2.0f, colIceBlue);
+    canvas.drawWideLine(petCx,     petCy + 16, petCx,      petCy + 24 + blowP * 16.0f, 2.0f, colIceBlue);
+    canvas.drawWideLine(petCx + 3, petCy + 16, petCx + 10, petCy + 20 + blowP * 16.0f, 2.0f, colIceBlue);
+  } else {
+    drawUpwardArcEye(petCx, petCy, -14.0f, 3.0f, 6.8f, 3.4f, 0.0f, colWhite);
+    drawUpwardArcEye(petCx, petCy,  14.0f, 3.0f, 6.8f, 3.4f, 0.0f, colWhite);
+    if (candleBlownOut) {
+      drawDownwardSleepEye(petCx, petCy + 6.0f, 8.0f, 3.2f, colWhite);
+    }
+  }
+
+  // 5) Bánh kem dâu 2 tầng + Nến sinh nhật lung linh phía trước!
+  int cakeY = 166;
+  int cakeW = 98;
+  int cakeH = 34;
+  int cakeX = 120 - cakeW / 2;
+
+  canvas.fillEllipse(120, cakeY + cakeH + 1, 60, 6, colPlate);
+  canvas.fillSmoothRoundRect(cakeX, cakeY, cakeW, cakeH, 8, colCakePink);
+  canvas.fillRect(cakeX + 2, cakeY + 17, cakeW - 4, 5, colYellowLight);
+
+  // Lớp kem phủ trắng chảy viền tròn trên mặt bánh
+  canvas.fillSmoothRoundRect(cakeX - 1, cakeY - 2, cakeW + 2, 12, 6, colCream);
+  for (int i = 0; i < 6; i++) {
+    canvas.fillSmoothCircle(cakeX + 9 + i * 16, cakeY + 9, 6, colCream);
+  }
+
+  // Cây nến sọc đỏ trắng ở chính giữa bánh
+  int candleX    = 120;
+  int candleTopY = cakeY - 20;
+  canvas.fillRect(candleX - 4, candleTopY, 8, 19, colWhite);
+  canvas.drawWideLine(candleX - 4, candleTopY + 6,  candleX + 4, candleTopY + 3,  2.0f, colCakePink);
+  canvas.drawWideLine(candleX - 4, candleTopY + 14, candleX + 4, candleTopY + 11, 2.0f, colCakePink);
+  canvas.drawLine(candleX, candleTopY, candleX, candleTopY - 4, colPlate);
+
+  if (!candleBlownOut) {
+    // Ngọn lửa nến lung linh (bị thổi nghiêng khi Pet thổi hơi!)
+    float flicker = isBlowing ? (sinf(t * 50.0f) * 5.0f) : (sinf(t * 18.0f) * 1.8f);
+    int   fx      = candleX + (int)flicker;
+    int   fy      = candleTopY - 12 + (isBlowing ? 4 : 0);
+
+    canvas.fillTriangle(candleX - 5, candleTopY - 5, candleX + 5, candleTopY - 5, fx, fy - 9, colOrange);
+    canvas.fillSmoothCircle(fx, fy, 6, colOrange);
+    canvas.fillSmoothCircle(fx, fy + 1, 3, colYellowLight);
+  } else {
+    // Làn khói trắng uốn lượn bay lên từ tim nến vừa tắt!
+    float smP = (el - 3.25f) / 1.4f;
+    if (smP < 1.0f) {
+      int sy = candleTopY - 5 - (int)(smP * 22.0f);
+      canvas.drawWideLine(candleX,     sy + 10, candleX - 4, sy + 3,  2.0f, colPlate);
+      canvas.drawWideLine(candleX - 4, sy + 3,  candleX + 4, sy - 4,  2.0f, colPlate);
+      canvas.drawWideLine(candleX + 4, sy - 4,  candleX - 2, sy - 11, 2.0f, colPlate);
+    }
+  }
+}
+
 // ======================= 7. KHUÔN MẶT CHÍNH =======================
 void drawMainPetFace(float t) {
   float holdPress = pet.holding ? (pet.holdDuration / HOLD_DIZZY_SEC) : 0.0f;
@@ -1679,9 +1852,10 @@ void loop() {
       } else if (pet.idleCountdown <= 0.0f) {
         PetMode nextStory = IDLE_STORIES[storyIndex % IDLE_STORY_LEN];
         storyIndex++;
-        float dur = (nextStory == MODE_MELT || nextStory == MODE_FREEZE) ? 5.0f
+        float dur = (nextStory == MODE_BIRTHDAY) ? 6.2f
+                  : ((nextStory == MODE_MELT || nextStory == MODE_FREEZE) ? 5.0f
                   : ((nextStory == MODE_MINDBLOWN) ? 4.8f
-                  : ((nextStory == MODE_BUBBLE) ? 4.6f : ((nextStory == MODE_FORTUNE) ? 4.3f : 3.9f)));
+                  : ((nextStory == MODE_BUBBLE) ? 4.6f : ((nextStory == MODE_FORTUNE) ? 4.3f : 3.9f))));
         setPetMode(nextStory, dur, true, false);
       }
     }
@@ -1754,6 +1928,9 @@ void loop() {
       break;
     case MODE_MINDBLOWN:
       drawMindBlownScene(pet.animElapsed, t);
+      break;
+    case MODE_BIRTHDAY:
+      drawBirthdayScene(pet.animElapsed, t);
       break;
     case MODE_DIZZY:
       drawDizzyScene(t);

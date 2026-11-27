@@ -34,14 +34,15 @@ Mỗi lần chạm nhanh vào cảm biến trên đỉnh hộp (hoặc nhấn ph
 - Sau `0.5 giây`: Pet rơi vào trạng thái **bị choáng** — đầu nghiêng ngả lắc lư, hai tròng mắt xoay xoáy ốc `@ @` ngược chiều nhau kèm **3 ngôi sao vàng** bay quay vòng quanh đỉnh đầu.
 
 ### 4. 🎬 Tự động chạy hiệu ứng mỗi `15 giây` không chạm (`Idle Stories`)
-Khi để yên trên bàn làm việc, cứ mỗi **15 giây** Pet sẽ tự động biểu diễn luân phiên **7 hoạt ảnh**:
+Khi để yên trên bàn làm việc, cứ mỗi **15 giây** Pet sẽ tự động biểu diễn luân phiên **8 hoạt ảnh**:
 1. **⚾ Đánh bóng chày (`Baseball Home Run`):** Pet đội mũ lưỡi trai vàng, cầm gậy bóng chày vàng chờ bóng bay tới rồi vung gậy tạo vệt sáng vàng quét ngang, đánh văng quả bóng bay vút lên trời lóe sao Home Run.
 2. **🥠 Bánh quy may mắn (`3D Lucky Scroll`):** Chiếc bánh quy vàng rung lắc mạnh rồi tách ra thành **hai đầu cuộn vàng khối 3D**, trải dải lụa **trắng đổ bóng xanh uốn lượn chữ S** với bé Pet nháy mắt `• <` ló lên ở góc phải, các mảnh pháo giấy tam giác vàng `▲` và **10 câu chúc tự động uốn cong theo sóng** (*`Luck is Yours`*, *`Stay Happy :)`*, *`Good Vibes Only`*, *`Big Win Ahead!`*...), sau đó Pet nhảy tưng tưng ngay trên dải lụa.
 3. **🥶 Tuyết rơi lạnh cóng → Đóng tảng băng & Phá băng (`Freeze & Shatter`).**
 4. **🫠 Nóng đỏ mặt → Tan chảy & Sôi bốc hơi (`Melt & Boil`).**
 5. **🫧 Phồng tròn hóa bong bóng ngũ sắc bay lên trời (`Bubble Float`).**
 6. **🤯 Quá tải phồng đầu → Nổ tung đám mây hình nấm (`Mind-Blown`).**
-7. **🎵 Ngân nga nốt nhạc (`Humming ♫`):** Pet nhắm mắt cười `⌒ ⌒` đung đưa qua lại cùng đám mây bọt xốp trắng-xanh và các nốt nhạc đôi `♫` bay bổng.
+7. **🎂 Chúc mừng Sinh nhật (`Happy Birthday`):** Hiện dòng chữ **`HAPPY BIRTHDAY!`**, phát trọn giai điệu bài hát *Happy Birthday to You* trên Buzzer, Pet đội mũ chóp sinh nhật đứng sau chiếc bánh kem dâu thắp nến lung linh — sau đó **chu miệng thổi tắt nến** bốc làn khói trắng và nổ pháo hoa ăn mừng!
+8. **🎵 Ngân nga nốt nhạc (`Humming ♫`):** Pet nhắm mắt cười `⌒ ⌒` đung đưa qua lại cùng đám mây bọt xốp trắng-xanh và các nốt nhạc đôi `♫` bay bổng.
 
 ### 5. 😴 Để lâu tự ngủ & Đánh thức nổ bong bóng (`Auto-Sleep & Bubble-Pop Wakeup`)
 - **Tự ngủ tiết kiệm điện (`60 giây` không tương tác):** Khung đầu xanh mờ dần, hai mắt nhắm cong xuống `︶ ︶` thổi phồng nhẹ quả bong bóng ngủ rồi **tắt đen hoàn toàn màn hình** (hỗ trợ tắt cả chân đèn nền `BLK`).
